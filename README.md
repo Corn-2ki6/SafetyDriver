@@ -35,7 +35,6 @@ Tài liệu gồm 7 phần chính:
 - Thành viên 1 và 2 phối hợp để bảo đảm giao diện đáp ứng đúng chức năng và dễ sử dụng.
 - Thành viên 3 và 5 phối hợp để mô hình dữ liệu thống nhất với luồng dữ liệu và cấu trúc phần mềm.
 - Thành viên 5 tổng hợp định dạng tài liệu; mỗi thành viên vẫn chịu trách nhiệm về độ chính xác của phần mình phụ trách.
-
 ---
 
 # 3. Yêu cầu chức năng (Functional Requirements)
@@ -63,7 +62,7 @@ Phần này mô tả **hệ thống cần thực hiện những chức năng gì
 - Giải thích cách hệ thống xử lý các dấu hiệu theo thời gian để nhận diện khả năng buồn ngủ.
 - Ghi rõ các ngưỡng, bộ đếm hoặc mô hình phân loại đang được sử dụng trong mã nguồn.
 
-## 3.4. Đánh giá trạng thái tài -9xế
+## 3.4. Đánh giá trạng thái tài xế
 
 - Mô tả các trạng thái mà hệ thống có thể hiển thị, chẳng hạn `Normal`, `Potential Drowsiness` hoặc `Face Not Detected`, nếu được hỗ trợ.
 - Giải thích điều kiện chuyển đổi giữa các trạng thái.
