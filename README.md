@@ -1,4 +1,4 @@
-*84444444444444444444444444444*-# SafetyDriver — Tài liệu Đặc tả Yêu cầu và Thiết kế
+# SafetyDriver — Tài liệu Đặc tả Yêu cầu và Thiết kế
 *(Requirement Specification & Design Document)*
 
 ## 1. Mục đích tài liệu
