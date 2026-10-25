@@ -1,475 +1,481 @@
-# SafetyDriver — Requirement Specification & Design Document
+*84444444444444444444444444444*-# SafetyDriver — Tài liệu Đặc tả Yêu cầu và Thiết kế
+*(Requirement Specification & Design Document)*
 
-## 1. Document Purpose
+## 1. Mục đích tài liệu
 
-This document defines the functional and non-functional requirements and the main design artifacts for SafetyDriver, a mobile application intended to help monitor observable signs of driver drowsiness and provide alerts.
+Tài liệu này mô tả các yêu cầu chức năng, yêu cầu phi chức năng và thiết kế tổng quan của **SafetyDriver** — ứng dụng hỗ trợ theo dõi các dấu hiệu buồn ngủ có thể quan sát được của tài xế và đưa ra cảnh báo.
 
-The document is organized into seven sections:
+Tài liệu gồm 7 phần chính:
 
-1. Functional Requirements
-2. Non-Functional Requirements
-3. Data Flow Diagram (DFD)
-4. Use Case Diagram
-5. Class Diagram
-6. Data Model
-7. Interface Design Description
+1. Yêu cầu chức năng (*Functional Requirements*)
+2. Yêu cầu phi chức năng (*Non-Functional Requirements*)
+3. Sơ đồ luồng dữ liệu (*Data Flow Diagram – DFD*)
+4. Sơ đồ ca sử dụng (*Use Case Diagram*)
+5. Sơ đồ lớp (*Class Diagram*)
+6. Mô hình dữ liệu (*Data Model*)
+7. Mô tả thiết kế giao diện (*Interface Design Description*)
 
-> **Implementation note:** Confirm each requirement against the current repository before treating it as an implemented feature. Mark features that are only planned as proposed requirements. Do not assume that a cloud service, remote server, or database exists unless the implementation requires it.
-
-## 2. Team Work Distribution
-
-| Team member | Main responsibility | Supporting responsibility | Deliverables |
-|---|---|---|---|
-| Member 1 | Functional Requirements | Coordinate interface requirements | Functional requirements table; function descriptions; interface feature list |
-| Member 2 | Non-Functional Requirements | Review usability and accessibility of the interface | Non-functional requirements table; measurable acceptance criteria |
-| Member 3 | Data Flow Diagram (DFD) | Collaborate on the Data Model with Member 5 | DFD Level 0 and Level 1; data-flow descriptions; ERD/data entity input |
-| Member 4 | Use Case Diagram | Validate use cases against Member 1's functional requirements | Use Case Diagram; use case descriptions |
-| Member 5 | Class Diagram | Collaborate on the Data Model with Member 3; consolidate the document | Class Diagram; class descriptions; final consistency review |
-
-### Shared work
-
-All members should agree on the application scope, actual and planned features, terminology, and diagrams. Members 1 and 2 should coordinate on interface design; Members 3 and 5 should coordinate on data design. Member 5 consolidates the document, but each section owner remains responsible for technical accuracy.
+> **Lưu ý khi viết tài liệu:** Cần kiểm tra từng yêu cầu với mã nguồn hiện có trước khi xác định đó là chức năng đã triển khai. Hãy phân biệt rõ chức năng đã có, chức năng đang phát triển và chức năng mới chỉ là đề xuất. Không mặc định rằng ứng dụng có máy chủ, dịch vụ đám mây hoặc cơ sở dữ liệu nếu chưa có căn cứ.
 
 ---
 
-# 3. Functional Requirements
+## 2. Phân công công việc cho 5 thành viên
 
-**Owner: Member 1**
+| Thành viên | Phần phụ trách chính | Phần phối hợp | Sản phẩm bàn giao |
+|---|---|---|---|
+| Thành viên 1 | Yêu cầu chức năng | Phối hợp xác định yêu cầu giao diện | Bảng yêu cầu chức năng và mô tả từng chức năng |
+| Thành viên 2 | Yêu cầu phi chức năng | Rà soát tính dễ sử dụng và khả năng tiếp cận của giao diện | Bảng yêu cầu phi chức năng và tiêu chí đánh giá |
+| Thành viên 3 | Sơ đồ DFD | Phối hợp với thành viên 5 xây dựng mô hình dữ liệu | DFD Level 0, DFD Level 1 và mô tả luồng dữ liệu |
+| Thành viên 4 | Sơ đồ Use Case | Đối chiếu với yêu cầu chức năng của thành viên 1 | Use Case Diagram và mô tả các ca sử dụng chính |
+| Thành viên 5 | Sơ đồ Class Diagram | Phối hợp với thành viên 3 về mô hình dữ liệu; tổng hợp tài liệu | Class Diagram, mô tả lớp và bản tài liệu đã rà soát |
 
-Functional requirements describe what the system must do. Give every requirement a unique identifier (for example, `FR-01`) and make it specific enough to verify.
+### Công việc chung
 
-## 3.1 Camera Access and Driver Monitoring
+- Cả nhóm thống nhất phạm vi ứng dụng, chức năng hiện có và chức năng dự kiến trước khi viết.
+- Thành viên 1 và 2 phối hợp để bảo đảm giao diện đáp ứng đúng chức năng và dễ sử dụng.
+- Thành viên 3 và 5 phối hợp để mô hình dữ liệu thống nhất với luồng dữ liệu và cấu trúc phần mềm.
+- Thành viên 5 tổng hợp định dạng tài liệu; mỗi thành viên vẫn chịu trách nhiệm về độ chính xác của phần mình phụ trách.
 
-- Describe how the user grants camera permission.
-- Describe how the application starts and stops camera-based monitoring.
-- Specify the expected behavior when permission is denied or the camera is unavailable.
-- State which camera source is supported by the current implementation.
+---
 
-## 3.2 Facial Detection
+# 3. Yêu cầu chức năng (Functional Requirements)
 
-- Describe how the system detects a driver's face in camera frames.
-- Specify what happens when no face or multiple faces are detected, if applicable.
-- Describe how the system handles temporary loss of facial landmarks.
+**Người phụ trách: Thành viên 1**
 
-## 3.3 Drowsiness Detection
+Phần này mô tả **hệ thống cần thực hiện những chức năng gì**. Mỗi yêu cầu nên có mã định danh riêng, ví dụ `FR-01`, và được viết rõ ràng để có thể kiểm tra.
 
-- Describe the observable indicators used by the system, based on the actual implementation. Examples may include eye closure, eye aspect ratio (EAR), yawning or mouth aspect ratio (MAR), and head pose.
-- Explain how indicators are processed over time to identify potential drowsiness.
-- Document any thresholds, counters, or model-based classification actually used.
+## 3.1. Truy cập camera và giám sát tài xế
 
-## 3.4 Driver State Assessment
+- Mô tả cách ứng dụng xin quyền truy cập camera.
+- Mô tả cách người dùng bắt đầu và kết thúc quá trình giám sát.
+- Xác định cách xử lý khi người dùng từ chối quyền camera hoặc camera không khả dụng.
+- Ghi rõ nguồn camera mà phiên bản hiện tại hỗ trợ.
 
-- Describe the states the system can report, such as `Normal`, `Potential Drowsiness`, or `Face Not Detected`, only where supported by the implementation.
-- Explain how the system changes between states.
-- Avoid presenting the result as a medical diagnosis or a guarantee that a driver is safe to drive.
+## 3.2. Phát hiện khuôn mặt
 
-## 3.5 Alert and Notification
+- Mô tả cách hệ thống phát hiện khuôn mặt tài xế từ hình ảnh camera.
+- Xác định cách xử lý khi không phát hiện được khuôn mặt hoặc khi có nhiều khuôn mặt, nếu trường hợp này nằm trong phạm vi hệ thống.
+- Mô tả cách xử lý khi các điểm đặc trưng trên khuôn mặt bị mất trong một khoảng thời gian.
 
-- Describe the alert triggered by a potential drowsiness event.
-- Specify the supported alert types, such as sound or an on-screen message.
-- Explain when an alert starts, stops, or resets.
-- Document behavior when sound or notification permissions are unavailable.
+## 3.3. Phát hiện dấu hiệu buồn ngủ
 
-## 3.6 Monitoring Session Management
+- Mô tả các dấu hiệu mà hệ thống thực sự sử dụng. Ví dụ: trạng thái mắt, tỷ lệ khung hình mắt (*Eye Aspect Ratio – EAR*), dấu hiệu ngáp hoặc tỷ lệ khung hình miệng (*Mouth Aspect Ratio – MAR*), tư thế đầu.
+- Giải thích cách hệ thống xử lý các dấu hiệu theo thời gian để nhận diện khả năng buồn ngủ.
+- Ghi rõ các ngưỡng, bộ đếm hoặc mô hình phân loại đang được sử dụng trong mã nguồn.
 
-- Describe how a monitoring session starts and ends.
-- Specify what session information, if any, is recorded.
-- Describe behavior when the application is paused, interrupted, or closed.
+## 3.4. Đánh giá trạng thái tài -9xế
 
-## 3.7 Error Handling and System Status
+- Mô tả các trạng thái mà hệ thống có thể hiển thị, chẳng hạn `Normal`, `Potential Drowsiness` hoặc `Face Not Detected`, nếu được hỗ trợ.
+- Giải thích điều kiện chuyển đổi giữa các trạng thái.
+- Không mô tả kết quả như một chẩn đoán y tế hoặc lời bảo đảm rằng tài xế hoàn toàn an toàn.
 
-- Document expected handling for camera permission denial, camera failure, face-detection failure, and processing errors.
-- Describe how the user is informed of a recoverable problem.
-- Specify whether monitoring resumes automatically or requires user action.
+## 3.5. Cảnh báo và thông báo
 
-## 3.8 Alert History Management
+- Mô tả loại cảnh báo được kích hoạt khi phát hiện dấu hiệu buồn ngủ.
+- Xác định hình thức cảnh báo được hỗ trợ, ví dụ âm thanh hoặc thông báo trên màn hình.
+- Giải thích điều kiện bắt đầu, dừng và đặt lại cảnh báo.
+- Mô tả cách xử lý khi âm thanh hoặc quyền thông báo không khả dụng.
 
-- State whether alerts or monitoring sessions are recorded.
-- Describe what information is stored, such as event type and timestamp, if supported.
-- Explain how users can view or clear records, if these actions are implemented.
-- If the current app does not persist history, identify history management as a proposed feature rather than an existing one.
+## 3.6. Quản lý phiên giám sát
 
-## 3.9 Functional Requirements Table
+- Mô tả cách bắt đầu và kết thúc một phiên giám sát.
+- Xác định thông tin phiên nào được ghi nhận, nếu có.
+- Mô tả cách hệ thống xử lý khi ứng dụng bị tạm dừng, gián đoạn hoặc đóng.
 
-Use a table like the following and complete it based on repository evidence.
+## 3.7. Xử lý lỗi và trạng thái hệ thống
 
-| ID | Requirement | Priority | Status | Acceptance criteria |
+- Mô tả cách xử lý khi không có quyền camera, camera gặp lỗi, không phát hiện được khuôn mặt hoặc quá trình xử lý bị lỗi.
+- Xác định cách thông báo cho người dùng khi xảy ra sự cố.
+- Nêu rõ hệ thống có tự tiếp tục hay yêu cầu người dùng thao tác lại.
+
+## 3.8. Quản lý lịch sử cảnh báo
+
+- Xác định ứng dụng có lưu lịch sử cảnh báo hoặc phiên giám sát hay không.
+- Nếu có, mô tả thông tin được lưu, chẳng hạn loại sự kiện và thời gian.
+- Mô tả cách xem hoặc xóa lịch sử nếu các chức năng này được triển khai.
+- Nếu phiên bản hiện tại chưa lưu lịch sử, hãy ghi đây là chức năng dự kiến, không trình bày như chức năng đã có.
+
+## 3.9. Bảng yêu cầu chức năng
+
+| Mã | Yêu cầu | Mức độ ưu tiên | Trạng thái | Tiêu chí nghiệm thu |
 |---|---|---|---|---|
-| FR-01 | The app requests camera access before starting camera-based monitoring. | Must have | To verify | Monitoring does not start without the required permission. |
-| FR-02 | The app processes camera frames to detect a driver's face. | Must have | To verify | The app reports face-detection status when processing valid frames. |
-| FR-03 | The app identifies potential drowsiness using supported detection logic. | Must have | To verify | Defined test inputs produce the expected state according to documented rules. |
-| FR-04 | The app provides an alert when its drowsiness condition is met. | Must have | To verify | A qualifying test event triggers the configured alert. |
-| FR-05 | The user can stop monitoring. | Must have | To verify | Camera processing stops after monitoring is stopped. |
-| FR-06 | The app communicates camera or processing errors to the user. | Should have | To verify | A supported failure produces a clear error state or message. |
-| FR-07 | The app stores and displays alert history. | Proposed / verify | To verify | If implemented, a recorded event can be retrieved and displayed. |
+| FR-01 | Ứng dụng yêu cầu quyền camera trước khi bắt đầu giám sát. | Bắt buộc | Cần kiểm tra | Không bắt đầu giám sát nếu chưa có quyền cần thiết. |
+| FR-02 | Ứng dụng xử lý hình ảnh camera để phát hiện khuôn mặt tài xế. | Bắt buộc | Cần kiểm tra | Hệ thống thể hiện trạng thái phát hiện khuôn mặt khi nhận được khung hình hợp lệ. |
+| FR-03 | Ứng dụng nhận diện dấu hiệu buồn ngủ dựa trên phương pháp được hỗ trợ. | Bắt buộc | Cần kiểm tra | Dữ liệu kiểm thử được xác định trước cho ra trạng thái phù hợp với quy tắc đã mô tả. |
+| FR-04 | Ứng dụng phát cảnh báo khi điều kiện buồn ngủ được thỏa mãn. | Bắt buộc | Cần kiểm tra | Sự kiện kiểm thử phù hợp kích hoạt cảnh báo đã cấu hình. |
+| FR-05 | Người dùng có thể dừng quá trình giám sát. | Bắt buộc | Cần kiểm tra | Việc xử lý camera dừng sau khi người dùng dừng giám sát. |
+| FR-06 | Ứng dụng thông báo lỗi camera hoặc lỗi xử lý. | Nên có | Cần kiểm tra | Lỗi được hỗ trợ tạo ra trạng thái hoặc thông báo rõ ràng. |
+| FR-07 | Ứng dụng lưu và hiển thị lịch sử cảnh báo. | Dự kiến / cần xác minh | Cần kiểm tra | Nếu được triển khai, sự kiện đã ghi nhận có thể được truy xuất và hiển thị. |
 
-**Status values:** `Implemented`, `Partially implemented`, `Planned`, or `Not supported`.
+**Trạng thái đề xuất:** `Đã triển khai`, `Đang triển khai một phần`, `Dự kiến` hoặc `Không hỗ trợ`.
 
 ---
 
-# 4. Non-Functional Requirements
+# 4. Yêu cầu phi chức năng (Non-Functional Requirements)
 
-**Owner: Member 2**
+**Người phụ trách: Thành viên 2**
 
-Non-functional requirements describe how well the system should operate and the constraints under which it must work. Use measurable targets where possible, and label targets that have not yet been tested as proposed.
+Phần này mô tả **hệ thống cần hoạt động tốt như thế nào** và các giới hạn cần đáp ứng. Nên sử dụng tiêu chí đo lường được; nếu chưa có kết quả kiểm thử thì ghi rõ đó là mục tiêu đề xuất.
 
-## 4.1 Performance
+## 4.1. Hiệu năng (Performance)
 
-- Define an acceptable processing delay and alert response time.
-- Define the expected monitoring frame rate or processing frequency, if measurable.
-- Assess battery and CPU usage on supported mobile devices.
-- Record the device and test conditions used for performance measurements.
+- Xác định thời gian xử lý và thời gian phản hồi cảnh báo có thể chấp nhận.
+- Xác định tốc độ xử lý khung hình hoặc tần suất xử lý mong muốn nếu có thể đo lường.
+- Đánh giá mức sử dụng pin và CPU trên thiết bị mục tiêu.
+- Ghi lại thiết bị và điều kiện dùng để đo hiệu năng.
 
-## 4.2 Detection Accuracy and Reliability
+## 4.2. Độ chính xác và độ tin cậy (Accuracy and Reliability)
 
-- Define how detection performance will be evaluated.
-- Test under different lighting conditions, face positions, glasses, and camera angles where practical.
-- Track false positives and false negatives using a defined test set.
-- State that performance claims require test evidence; do not claim a particular accuracy without measurements.
+- Xác định phương pháp đánh giá hiệu quả phát hiện.
+- Kiểm thử trong các điều kiện ánh sáng, góc mặt, kính mắt và vị trí camera khác nhau nếu phù hợp.
+- Theo dõi trường hợp cảnh báo sai (*false positive*) và bỏ sót dấu hiệu (*false negative*) trên tập kiểm thử được xác định.
+- Không công bố tỷ lệ chính xác nếu chưa có kết quả đo lường.
 
-## 4.3 Usability
+## 4.3. Tính dễ sử dụng (Usability)
 
-- Make monitoring status and alerts easy to understand.
-- Keep the start and stop actions clear.
-- Provide understandable guidance when camera access is denied or the face cannot be detected.
-- Ensure text, icons, and warning states are distinguishable.
+- Trạng thái giám sát và cảnh báo phải dễ hiểu.
+- Nút bắt đầu và dừng giám sát cần rõ ràng.
+- Hướng dẫn phải dễ hiểu khi người dùng từ chối quyền camera hoặc hệ thống không phát hiện được khuôn mặt.
+- Văn bản, biểu tượng và trạng thái cảnh báo cần dễ phân biệt.
 
-## 4.4 Mobile Device Compatibility
+## 4.4. Khả năng tương thích với thiết bị di động (Mobile Device Compatibility)
 
-- List the target operating systems and minimum supported versions.
-- Document device and camera requirements.
-- Test screen sizes, camera permissions, interruptions, and background/foreground behavior on target devices.
-- Confirm that the existing implementation and its dependencies can run on the intended mobile platform.
+- Liệt kê hệ điều hành mục tiêu và phiên bản tối thiểu được hỗ trợ.
+- Ghi rõ yêu cầu về thiết bị và camera.
+- Kiểm thử kích thước màn hình, quyền camera và hành vi khi ứng dụng chuyển nền hoặc quay lại.
+- Xác minh khả năng tương thích của mã nguồn và thư viện hiện tại với nền tảng di động dự kiến.
 
-## 4.5 Privacy and Data Security
+## 4.5. Quyền riêng tư và bảo mật dữ liệu (Privacy and Data Security)
 
-- Explain when camera frames are processed and whether they leave the device.
-- Store only data needed for the app's stated purpose.
-- If event history is saved, define its location, access controls, and deletion behavior.
-- Do not claim that data is stored locally or never transmitted until verified in the implementation.
+- Giải thích hình ảnh camera được xử lý ở đâu và có được truyền ra ngoài thiết bị hay không.
+- Chỉ lưu dữ liệu cần thiết cho mục tiêu của ứng dụng.
+- Nếu lưu lịch sử, xác định vị trí lưu, quyền truy cập và cách xóa dữ liệu.
+- Không khẳng định dữ liệu chỉ được lưu cục bộ hoặc không truyền qua mạng khi chưa kiểm tra mã nguồn.
 
-## 4.6 Maintainability
+## 4.6. Khả năng bảo trì (Maintainability)
 
-- Keep detection, camera access, alert handling, session management, and data storage logically separated where practical.
-- Use consistent names, error handling, and documentation.
-- Make thresholds and configuration values easy to locate and review.
-- Document dependencies and supported versions.
+- Phân tách hợp lý các phần xử lý camera, phát hiện khuôn mặt, nhận diện buồn ngủ, cảnh báo, quản lý phiên và lưu trữ dữ liệu.
+- Sử dụng cách đặt tên, xử lý lỗi và tài liệu thống nhất.
+- Giúp các ngưỡng và thông số cấu hình dễ tìm, dễ kiểm tra.
+- Ghi rõ các thư viện phụ thuộc và phiên bản được hỗ trợ.
 
-## 4.7 Non-Functional Requirements Table
+## 4.7. Bảng yêu cầu phi chức năng
 
-| ID | Requirement | Measurement / verification | Target or status |
+| Mã | Yêu cầu | Cách kiểm tra | Mục tiêu / trạng thái |
 |---|---|---|---|
-| NFR-01 | The app should respond to a qualifying drowsiness event promptly. | Measure event-to-alert delay on target devices. | Target to be defined and tested |
-| NFR-02 | The app should handle temporary face-detection loss without crashing. | Test face occlusion and movement out of frame. | Required |
-| NFR-03 | The interface should clearly show whether monitoring is active. | Usability review and functional test. | Required |
-| NFR-04 | Camera data handling should match the documented privacy policy. | Review code paths, permissions, storage, and network use. | Verify implementation |
-| NFR-05 | The app should operate on declared target devices. | Run compatibility tests on the target device matrix. | Device matrix to be defined |
+| NFR-01 | Ứng dụng phản hồi kịp thời khi phát hiện điều kiện cảnh báo. | Đo thời gian từ sự kiện đến cảnh báo trên thiết bị mục tiêu. | Cần xác định mục tiêu và kiểm thử |
+| NFR-02 | Ứng dụng xử lý được tình huống khuôn mặt tạm thời không được phát hiện mà không bị dừng đột ngột. | Kiểm thử khi khuôn mặt bị che hoặc ra khỏi khung hình. | Bắt buộc |
+| NFR-03 | Giao diện thể hiện rõ trạng thái giám sát đang bật hay tắt. | Rà soát khả năng sử dụng và kiểm thử chức năng. | Bắt buộc |
+| NFR-04 | Việc xử lý dữ liệu camera phù hợp với mô tả về quyền riêng tư. | Kiểm tra mã nguồn, quyền truy cập, lưu trữ và kết nối mạng. | Cần xác minh |
+| NFR-05 | Ứng dụng hoạt động trên các thiết bị mục tiêu đã công bố. | Kiểm thử trên danh sách thiết bị mục tiêu. | Cần xác định danh sách |
 
 ---
 
-# 5. Data Flow Diagram (DFD)
+# 5. Sơ đồ luồng dữ liệu (Data Flow Diagram – DFD)
 
-**Owner: Member 3**
+**Người phụ trách: Thành viên 3**
 
-The DFD explains how data enters the system, how it is processed, and where outputs or records go.
+DFD mô tả dữ liệu đi vào hệ thống, được xử lý như thế nào và đầu ra được chuyển đến đâu.
 
-## 5.1 DFD Level 0 — Context Diagram
+## 5.1. DFD Level 0 — Sơ đồ ngữ cảnh (Context Diagram)
 
-Show SafetyDriver as one system process and its external entities. Possible elements include:
+Biểu diễn SafetyDriver như một tiến trình tổng thể và các thực thể bên ngoài. Các thành phần có thể gồm:
 
-- **Driver / User:** starts or stops monitoring and receives status messages and alerts.
-- **Camera:** supplies image frames to the app.
-- **SafetyDriver:** processes the frames and produces a monitoring state and alerts.
+- **Tài xế / Người dùng:** bắt đầu hoặc dừng giám sát, nhận trạng thái và cảnh báo.
+- **Camera:** cung cấp khung hình cho ứng dụng.
+- **SafetyDriver:** xử lý khung hình, xác định trạng thái giám sát và tạo cảnh báo.
 
-Only include an external entity if it represents a real boundary in the chosen system model. If the camera is treated as a device interface rather than an external system, explain that modeling choice.
+Chỉ đưa vào sơ đồ những thực thể phù hợp với ranh giới hệ thống đã thống nhất. Nếu camera được xem là một giao diện thiết bị bên trong hệ thống thay vì thực thể ngoài, cần thống nhất và giải thích cách mô hình hóa.
 
-## 5.2 DFD Level 1 — Main System Processes
+## 5.2. DFD Level 1 — Các tiến trình chính
 
-A possible decomposition is:
+Có thể phân rã hệ thống thành các tiến trình sau:
 
-1. **Capture Camera Frames** — obtain image frames after permission is granted.
-2. **Detect Face and Facial Features** — locate the face and required landmarks.
-3. **Analyze Drowsiness Indicators** — evaluate supported indicators and detection rules or model output.
-4. **Determine Driver State** — produce the current state based on the analysis.
-5. **Issue Alert** — provide a warning when the defined condition is met.
-6. **Record Events (if supported)** — save event/session information to a data store.
+1. **Thu nhận khung hình camera:** lấy hình ảnh sau khi đã có quyền truy cập.
+2. **Phát hiện khuôn mặt và đặc trưng khuôn mặt:** xác định khuôn mặt và các điểm đặc trưng cần thiết.
+3. **Phân tích dấu hiệu buồn ngủ:** đánh giá các chỉ số hoặc kết quả mô hình mà hệ thống hỗ trợ.
+4. **Xác định trạng thái tài xế:** tạo trạng thái hiện tại dựa trên kết quả phân tích.
+5. **Phát cảnh báo:** đưa ra cảnh báo khi điều kiện đã xác định được thỏa mãn.
+6. **Ghi nhận sự kiện:** lưu thông tin sự kiện nếu chức năng lưu trữ được triển khai.
 
-Adjust the processes to match the actual architecture. Do not show a persistent data store if the application does not persist data.
+Điều chỉnh các tiến trình theo kiến trúc thực tế. Không vẽ kho dữ liệu lâu dài nếu ứng dụng không lưu dữ liệu.
 
-## 5.3 Data Flows, Processes, and Data Stores
+## 5.3. Luồng dữ liệu và kho dữ liệu
 
-For each flow, label the data being transferred. Examples:
+Đặt tên rõ ràng cho dữ liệu trên từng luồng. Ví dụ:
 
-- Camera frames → facial feature detection
-- Facial landmarks or measurements → drowsiness analysis
-- Analysis result → driver-state assessment
-- Driver state → alert handling and user interface
-- Alert event → event history store, if implemented
+- Khung hình camera → phát hiện đặc trưng khuôn mặt.
+- Điểm đặc trưng hoặc chỉ số khuôn mặt → phân tích dấu hiệu buồn ngủ.
+- Kết quả phân tích → xác định trạng thái tài xế.
+- Trạng thái tài xế → xử lý cảnh báo và cập nhật giao diện.
+- Sự kiện cảnh báo → kho lịch sử, nếu có lưu trữ.
 
-## 5.4 DFD Validation Checklist
+## 5.4. Checklist kiểm tra DFD
 
-- Every process has a meaningful input and output.
-- Data-flow labels describe information, not vague actions.
-- The diagram does not show direct data transfer between external entities without a process.
-- Processes and data stores are consistent with the functional requirements.
-- The Level 0 and Level 1 diagrams use consistent names and boundaries.
+- Mỗi tiến trình có đầu vào và đầu ra hợp lý.
+- Tên luồng dữ liệu mô tả thông tin được truyền, không chỉ mô tả hành động chung.
+- Các thực thể bên ngoài không trao đổi dữ liệu trực tiếp với nhau mà bỏ qua tiến trình xử lý của hệ thống.
+- Tiến trình và kho dữ liệu nhất quán với yêu cầu chức năng.
+- DFD Level 0 và Level 1 sử dụng tên gọi và ranh giới hệ thống thống nhất.
 
-**Deliverables:** DFD Level 0, DFD Level 1, and a short explanation of each process and data flow.
+**Sản phẩm bàn giao:** DFD Level 0, DFD Level 1 và phần giải thích ngắn cho từng tiến trình, luồng dữ liệu.
 
 ---
 
-# 6. Use Case Diagram
+# 6. Sơ đồ ca sử dụng (Use Case Diagram)
 
-**Owner: Member 4**
+**Người phụ trách: Thành viên 4**
 
-The Use Case Diagram describes how actors interact with SafetyDriver.
+Use Case Diagram mô tả cách người dùng tương tác với SafetyDriver để thực hiện các mục tiêu cụ thể.
 
-## 6.1 System Actors
+## 6.1. Tác nhân hệ thống (System Actors)
 
-- **Driver / User:** the primary actor who operates the app and receives its results.
-- **Camera Device:** include as an actor only if the chosen UML model treats it as an external interacting system; otherwise model it within the system boundary.
+- **Tài xế / Người dùng:** tác nhân chính, thao tác với ứng dụng và nhận kết quả.
+- **Thiết bị camera:** chỉ đưa vào như tác nhân nếu mô hình UML xem đây là một hệ thống bên ngoài tương tác với SafetyDriver; nếu không, có thể mô hình hóa camera như một thành phần nội bộ.
 
-Do not add administrator, cloud service, or emergency service actors unless those roles exist in the agreed scope.
+Không thêm quản trị viên, dịch vụ đám mây hoặc dịch vụ khẩn cấp nếu các vai trò này không nằm trong phạm vi dự án.
 
-## 6.2 Main Use Cases
+## 6.2. Các ca sử dụng chính (Main Use Cases)
 
-Potential use cases, subject to implementation verification:
+Các ca sử dụng tiềm năng, cần xác minh theo chức năng thực tế:
 
-- Grant Camera Permission
-- Start Monitoring
-- Stop Monitoring
-- View Monitoring Status
-- Receive Drowsiness Alert
-- Handle Camera or Detection Error
-- View Alert History (if supported)
-- Clear Alert History (if supported)
+- Cấp quyền camera (*Grant Camera Permission*)
+- Bắt đầu giám sát (*Start Monitoring*)
+- Dừng giám sát (*Stop Monitoring*)
+- Xem trạng thái giám sát (*View Monitoring Status*)
+- Nhận cảnh báo buồn ngủ (*Receive Drowsiness Alert*)
+- Xử lý lỗi camera hoặc phát hiện (*Handle Camera or Detection Error*)
+- Xem lịch sử cảnh báo (*View Alert History*), nếu có
+- Xóa lịch sử cảnh báo (*Clear Alert History*), nếu có
 
-## 6.3 Actor–Use Case Relationships
+## 6.3. Quan hệ giữa tác nhân và ca sử dụng
 
-- Connect the Driver / User to actions the user initiates or information the user receives.
-- Use `<<include>>` only when one use case always invokes another as part of its behavior.
-- Use `<<extend>>` only for optional or conditional behavior that extends a base use case.
-- Keep the system boundary labeled `SafetyDriver`.
+- Kết nối tác nhân Tài xế / Người dùng với các chức năng người dùng khởi tạo hoặc thông tin người dùng nhận được.
+- Chỉ sử dụng quan hệ `<<include>>` khi một ca sử dụng luôn gọi đến ca sử dụng khác như một phần bắt buộc của quy trình.
+- Chỉ sử dụng quan hệ `<<extend>>` khi hành vi mở rộng là tùy chọn hoặc phụ thuộc điều kiện.
+- Ghi tên ranh giới hệ thống là `SafetyDriver`.
 
-## 6.4 Main Use Case Descriptions
+## 6.4. Mô tả các ca sử dụng chính
 
-Use the following template for each important use case.
+Sử dụng mẫu sau cho mỗi ca sử dụng quan trọng.
 
-| Field | Description |
+| Trường thông tin | Mô tả |
 |---|---|
-| Use Case ID | Unique identifier, e.g. UC-01 |
-| Name | Start Monitoring |
-| Primary actor | Driver / User |
-| Preconditions | The app is open and required camera permission is available. |
-| Main flow | User selects Start Monitoring; the app begins capturing and processing frames; the current state is displayed. |
-| Alternative / exception flows | Permission denied, camera unavailable, or no face detected. |
-| Postconditions | Monitoring is active, or the app reports why it could not start. |
+| Mã ca sử dụng | Mã duy nhất, ví dụ UC-01 |
+| Tên | Bắt đầu giám sát |
+| Tác nhân chính | Tài xế / Người dùng |
+| Điều kiện trước | Ứng dụng đang mở và đã có quyền camera cần thiết. |
+| Luồng chính | Người dùng chọn Bắt đầu giám sát; ứng dụng bắt đầu lấy và xử lý khung hình; trạng thái hiện tại được hiển thị. |
+| Luồng thay thế / ngoại lệ | Người dùng từ chối quyền, camera không khả dụng hoặc không phát hiện được khuôn mặt. |
+| Điều kiện sau | Quá trình giám sát hoạt động hoặc ứng dụng thông báo lý do không thể bắt đầu. |
 
-Create detailed descriptions for at least `Start Monitoring`, `Stop Monitoring`, and `Receive Drowsiness Alert`. Include history use cases only if history is in scope.
+Viết mô tả chi tiết tối thiểu cho `Start Monitoring`, `Stop Monitoring` và `Receive Drowsiness Alert`. Chỉ bổ sung ca sử dụng lịch sử nếu chức năng này thuộc phạm vi ứng dụng.
 
 ---
 
-# 7. Class Diagram
+# 7. Sơ đồ lớp (Class Diagram)
 
-**Owner: Member 5**
+**Người phụ trách: Thành viên 5**
 
-The Class Diagram shows the static structure of the software. Class names below are candidates, not a claim that these exact classes already exist in the repository.
+Class Diagram mô tả cấu trúc tĩnh của phần mềm. Các lớp dưới đây chỉ là gợi ý thiết kế, không khẳng định rằng mã nguồn hiện tại đã có các lớp với tên tương tự.
 
-## 7.1 Candidate Classes
+## 7.1. Các lớp dự kiến
 
-- **CameraManager** — manages camera access and frame capture.
-- **FaceDetector** — detects a face and relevant facial landmarks.
-- **DrowsinessDetector** — evaluates indicators or invokes the detection model.
-- **DriverStateManager** — maintains or determines the current driver-monitoring state, if this responsibility is separate in the implementation.
-- **AlertManager** — triggers and stops supported alerts.
-- **MonitoringSession** — represents the state and duration of a monitoring session, if session management is implemented.
-- **HistoryManager** — stores and retrieves events, only if persistent history is supported.
-- **UserInterface / MonitoringScreen** — displays status and receives user actions, depending on the chosen architecture.
+- **CameraManager:** quản lý quyền truy cập camera và việc thu nhận khung hình.
+- **FaceDetector:** phát hiện khuôn mặt và các điểm đặc trưng cần thiết.
+- **DrowsinessDetector:** đánh giá dấu hiệu buồn ngủ hoặc gọi mô hình phát hiện.
+- **DriverStateManager:** quản lý hoặc xác định trạng thái giám sát, nếu trách nhiệm này được tách riêng.
+- **AlertManager:** kích hoạt và dừng các loại cảnh báo được hỗ trợ.
+- **MonitoringSession:** đại diện cho trạng thái và thời lượng một phiên giám sát, nếu có quản lý phiên.
+- **HistoryManager:** lưu và truy xuất sự kiện, chỉ khi có lịch sử được lưu trữ.
+- **UserInterface / MonitoringScreen:** hiển thị trạng thái và tiếp nhận thao tác người dùng, tùy kiến trúc được chọn.
 
-Merge or rename classes to match the real code. Do not create classes solely to fill out the diagram.
+Hãy gộp, đổi tên hoặc loại bỏ các lớp để khớp với mã nguồn và kiến trúc thực tế. Không tạo lớp chỉ để làm sơ đồ có vẻ đầy đủ hơn.
 
-## 7.2 Class Attributes and Methods
+## 7.2. Thuộc tính và phương thức của lớp
 
-For each class, identify only relevant attributes and operations. For example:
+Mỗi lớp chỉ cần các thuộc tính và phương thức liên quan. Ví dụ:
 
 **CameraManager**
-- Attributes: camera status, permission status (if managed here)
-- Methods: request permission, start capture, stop capture, retrieve frame
+- Thuộc tính: trạng thái camera, trạng thái quyền truy cập (nếu lớp này quản lý).
+- Phương thức: yêu cầu quyền, bắt đầu thu nhận, dừng thu nhận, lấy khung hình.
 
 **DrowsinessDetector**
-- Attributes: configured thresholds or model reference, if applicable
-- Methods: extract or receive indicators, evaluate state, return detection result
+- Thuộc tính: ngưỡng cấu hình hoặc tham chiếu đến mô hình, nếu có.
+- Phương thức: nhận hoặc trích xuất chỉ số, đánh giá trạng thái, trả về kết quả phát hiện.
 
 **AlertManager**
-- Attributes: alert status, configured alert type
-- Methods: trigger alert, stop alert, reset alert
+- Thuộc tính: trạng thái cảnh báo, loại cảnh báo được cấu hình.
+- Phương thức: kích hoạt cảnh báo, dừng cảnh báo, đặt lại cảnh báo.
 
-These are illustrative design candidates; use the repository's actual responsibilities and interfaces.
+Đây là ví dụ minh họa. Cần điều chỉnh theo trách nhiệm và giao diện thực tế của từng thành phần.
 
-## 7.3 Class Relationships
+## 7.3. Quan hệ giữa các lớp
 
-Show only relationships supported by the design, such as:
+Thể hiện những quan hệ phù hợp với thiết kế, ví dụ:
 
-- CameraManager supplies frames to the facial analysis component.
-- FaceDetector provides landmarks or measurements to DrowsinessDetector.
-- DrowsinessDetector returns a result to the component responsible for driver state.
-- The state or event component requests an alert from AlertManager.
-- A session or event component interacts with HistoryManager if event storage exists.
+- `CameraManager` cung cấp khung hình cho thành phần phân tích khuôn mặt.
+- `FaceDetector` cung cấp điểm đặc trưng hoặc chỉ số cho `DrowsinessDetector`.
+- `DrowsinessDetector` trả kết quả cho thành phần xác định trạng thái tài xế.
+- Thành phần trạng thái hoặc sự kiện yêu cầu `AlertManager` phát cảnh báo.
+- Thành phần phiên hoặc sự kiện tương tác với `HistoryManager` nếu có lưu dữ liệu.
 
-Label associations and multiplicities where meaningful. Use dependency arrows when one component only uses another temporarily.
+Ghi nhãn quan hệ và bội số (*multiplicity*) khi cần thiết. Dùng mũi tên phụ thuộc khi một thành phần chỉ sử dụng thành phần khác trong thời gian ngắn.
 
-## 7.4 Class Diagram Validation
+## 7.4. Checklist kiểm tra Class Diagram
 
-- Each class has a clear responsibility.
-- Method names are consistent with the implementation or agreed design.
-- Relationships do not contradict the DFD.
-- Data entities in the Class Diagram are consistent with the Data Model.
-- Avoid putting every function into one oversized class.
+- Mỗi lớp có trách nhiệm rõ ràng.
+- Tên phương thức thống nhất với mã nguồn hoặc thiết kế đã được duyệt.
+- Quan hệ giữa các lớp không mâu thuẫn với DFD.
+- Các thực thể dữ liệu thống nhất với Data Model.
+- Tránh đưa mọi chức năng vào một lớp duy nhất có quá nhiều trách nhiệm.
 
-**Deliverable:** Class Diagram plus a short table describing each class's responsibility.
-
----
-
-# 8. Data Model
-
-**Co-owners: Members 3 and 5**
-
-The Data Model identifies persistent information and relationships. First determine whether SafetyDriver actually needs persistent storage.
-
-## 8.1 Data Entities
-
-Potential entities, only if required:
-
-### MonitoringSession
-- `session_id` — primary key
-- `start_time`
-- `end_time`
-- `session_status`
-
-### AlertEvent
-- `event_id` — primary key
-- `session_id` — foreign key to MonitoringSession, if sessions are stored
-- `event_type`
-- `event_timestamp`
-- `event_details`, if needed and appropriate
-
-These are proposed examples. Remove fields and entities that are not needed by the application. Avoid storing camera frames or facial data unless there is a clear requirement, justification, and privacy review.
-
-## 8.2 Primary Keys and Foreign Keys
-
-- Define a primary key for each persisted entity.
-- Define a foreign key only when a real relationship exists between stored records.
-- If `AlertEvent` belongs to a `MonitoringSession`, use `session_id` as its foreign key.
-- Document any required constraints, such as non-null timestamps.
-
-## 8.3 Entity Relationship Diagram (ERD)
-
-If the app persists sessions and events, a possible relationship is:
-
-- One `MonitoringSession` can contain zero or many `AlertEvent` records.
-- Each `AlertEvent` belongs to one `MonitoringSession`.
-
-If no persistent database exists or is required, document the data structures used at runtime and state that persistent storage is outside the current scope instead of inventing database tables.
-
-## 8.4 Data Storage and Retention
-
-Document:
-
-- Where data is stored (memory, local file, local database, or remote storage).
-- What information is retained and why.
-- How long records are kept.
-- How records are deleted.
-- Whether any data is transmitted off-device.
-
-**Deliverables:** Entity/attribute table, ERD where applicable, and a short data-retention explanation.
+**Sản phẩm bàn giao:** Class Diagram và bảng mô tả ngắn trách nhiệm của từng lớp.
 
 ---
 
-# 9. Interface Design Description
+# 8. Mô hình dữ liệu (Data Model)
 
-**Coordination: Member 1 defines functional behavior; Member 2 reviews usability; Member 5 consolidates**
+**Đồng phụ trách: Thành viên 3 và Thành viên 5**
 
-Describe the interface in text and/or wireframes. Include only screens that are part of the agreed product scope.
+Mô hình dữ liệu xác định thông tin được lưu và mối quan hệ giữa chúng. Trước tiên, nhóm cần xác định SafetyDriver có thực sự cần lưu dữ liệu lâu dài hay không.
 
-## 9.1 User Interface Overview
+## 8.1. Các thực thể dữ liệu
 
-- Identify the target device and platform.
-- Explain the main navigation flow.
-- Describe how the interface communicates monitoring status, errors, and alerts.
-- Ensure the interface reflects the actual functions listed in Section 3.
+Các thực thể gợi ý dưới đây chỉ áp dụng khi hệ thống có nhu cầu lưu trữ.
 
-## 9.2 Home Screen
+### MonitoringSession — Phiên giám sát
 
-Describe:
+- `session_id`: khóa chính (*Primary Key*).
+- `start_time`: thời điểm bắt đầu.
+- `end_time`: thời điểm kết thúc.
+- `session_status`: trạng thái phiên.
 
-- App name and short purpose statement.
-- Start Monitoring action.
-- Camera permission prompt or permission status, as appropriate.
-- Access to settings or history, if supported.
+### AlertEvent — Sự kiện cảnh báo
 
-## 9.3 Monitoring Screen
+- `event_id`: khóa chính (*Primary Key*).
+- `session_id`: khóa ngoại (*Foreign Key*) liên kết với MonitoringSession, nếu lưu phiên.
+- `event_type`: loại sự kiện.
+- `event_timestamp`: thời điểm sự kiện.
+- `event_details`: chi tiết sự kiện, nếu cần và phù hợp.
 
-Describe:
+Đây là ví dụ đề xuất. Loại bỏ thực thể và trường dữ liệu không cần thiết. Tránh lưu hình ảnh camera hoặc dữ liệu khuôn mặt nếu không có yêu cầu rõ ràng, lý do chính đáng và đánh giá quyền riêng tư.
 
-- Camera preview, if included.
-- Current monitoring state.
-- Clear Stop Monitoring action.
-- Face-detection or camera status.
-- Appropriate behavior when a face is not detected.
+## 8.2. Khóa chính và khóa ngoại
 
-## 9.4 Drowsiness Alert Interface
+- Xác định khóa chính cho mỗi thực thể được lưu trữ.
+- Chỉ xác định khóa ngoại khi tồn tại quan hệ thực sự giữa các bản ghi.
+- Nếu `AlertEvent` thuộc về một `MonitoringSession`, sử dụng `session_id` làm khóa ngoại.
+- Ghi lại các ràng buộc cần thiết, chẳng hạn trường thời gian không được để trống.
 
-Describe:
+## 8.3. Sơ đồ quan hệ thực thể (Entity Relationship Diagram – ERD)
 
-- Alert message and visual emphasis.
-- Sound or other supported alert mechanism.
-- How the alert is stopped or reset.
-- How the interface avoids implying that the system can guarantee driver safety.
+Nếu ứng dụng lưu phiên và sự kiện, quan hệ có thể là:
 
-## 9.5 Monitoring History Screen
+- Một `MonitoringSession` có thể chứa không hoặc nhiều `AlertEvent`.
+- Mỗi `AlertEvent` thuộc về một `MonitoringSession`.
 
-Include only if the app records history. Describe the event list, timestamps, details shown, and any clear/delete action. If history is not implemented, mark this screen as a proposed feature or omit it.
+Nếu ứng dụng chưa có hoặc không cần cơ sở dữ liệu lâu dài, hãy mô tả cấu trúc dữ liệu dùng trong lúc chạy và nêu rõ lưu trữ lâu dài nằm ngoài phạm vi hiện tại, thay vì tự tạo các bảng không cần thiết.
 
-## 9.6 Settings Screen
+## 8.4. Lưu trữ và thời hạn lưu dữ liệu
 
-Include only settings that exist or are explicitly planned, such as alert preferences or supported thresholds. Do not expose internal configuration values to users without a product reason.
+Cần mô tả:
 
-## 9.7 Navigation Flow
+- Dữ liệu được lưu ở đâu: bộ nhớ tạm, tệp cục bộ, cơ sở dữ liệu cục bộ hay máy chủ.
+- Dữ liệu nào được giữ lại và vì sao.
+- Thời hạn lưu trữ.
+- Cách xóa dữ liệu.
+- Dữ liệu có được truyền ra ngoài thiết bị hay không.
 
-Provide a simple flow, for example:
+**Sản phẩm bàn giao:** Bảng thực thể và thuộc tính, ERD nếu phù hợp, phần mô tả lưu trữ và thời hạn lưu dữ liệu.
+
+---
+
+# 9. Mô tả thiết kế giao diện (Interface Design Description)
+
+**Phối hợp: Thành viên 1 xác định chức năng; Thành viên 2 rà soát tính dễ sử dụng; Thành viên 5 tổng hợp**
+
+Mô tả giao diện bằng văn bản và/hoặc bản phác thảo (*wireframe*). Chỉ đưa vào những màn hình thuộc phạm vi sản phẩm đã thống nhất.
+
+## 9.1. Tổng quan giao diện
+
+- Xác định thiết bị và nền tảng mục tiêu.
+- Giải thích luồng điều hướng chính.
+- Mô tả cách giao diện thể hiện trạng thái giám sát, lỗi và cảnh báo.
+- Đảm bảo giao diện phản ánh đúng các chức năng ở Mục 3.
+
+## 9.2. Màn hình chính (Home Screen)
+
+Mô tả:
+
+- Tên ứng dụng và giới thiệu ngắn.
+- Nút Bắt đầu giám sát.
+- Yêu cầu cấp quyền camera hoặc trạng thái quyền.
+- Lối truy cập cài đặt hoặc lịch sử nếu có hỗ trợ.
+
+## 9.3. Màn hình giám sát (Monitoring Screen)
+
+Mô tả:
+
+- Khung hình camera nếu giao diện có hiển thị.
+- Trạng thái giám sát hiện tại.
+- Nút Dừng giám sát rõ ràng.
+- Trạng thái camera hoặc phát hiện khuôn mặt.
+- Cách hiển thị khi không phát hiện được khuôn mặt.
+
+## 9.4. Giao diện cảnh báo buồn ngủ (Drowsiness Alert Interface)
+
+Mô tả:
+
+- Nội dung và mức độ nổi bật của cảnh báo.
+- Cơ chế cảnh báo được hỗ trợ như âm thanh hoặc thông báo trực quan.
+- Cách dừng hoặc đặt lại cảnh báo.
+- Cách tránh tạo cảm giác rằng hệ thống có thể bảo đảm an toàn tuyệt đối cho tài xế.
+
+## 9.5. Màn hình lịch sử giám sát (Monitoring History Screen)
+
+Chỉ đưa vào nếu ứng dụng lưu lịch sử. Mô tả danh sách sự kiện, thời gian, thông tin hiển thị và thao tác xóa nếu có. Nếu chưa triển khai, đánh dấu đây là chức năng dự kiến hoặc loại khỏi phạm vi hiện tại.
+
+## 9.6. Màn hình cài đặt (Settings Screen)
+
+Chỉ mô tả các cài đặt đã có hoặc được xác định rõ là sẽ phát triển, chẳng hạn tùy chọn cảnh báo hoặc ngưỡng cấu hình. Không đưa thông số kỹ thuật nội bộ ra giao diện người dùng nếu không có lý do phù hợp.
+
+## 9.7. Luồng điều hướng
+
+Luồng ví dụ:
 
 `Home → Grant Camera Permission → Monitoring → (Potential Drowsiness → Alert) → Stop Monitoring`
 
-Add error branches for denied permission or unavailable camera. Add History or Settings branches only if they are in scope.
+Bổ sung nhánh xử lý lỗi khi người dùng từ chối quyền hoặc camera không khả dụng. Chỉ thêm nhánh Lịch sử hoặc Cài đặt nếu nằm trong phạm vi ứng dụng.
 
-**Deliverables:** Screen descriptions, wireframes/mockups, and a navigation-flow diagram.
+**Sản phẩm bàn giao:** Mô tả từng màn hình, wireframe/mockup và sơ đồ luồng điều hướng.
 
 ---
 
-# 10. Suggested Work Plan
+# 10. Kế hoạch thực hiện đề xuất
 
-| Phase | Work | Responsible members |
+| Giai đoạn | Công việc | Người phụ trách |
 |---|---|---|
-| 1 | Agree on scope, current capabilities, and planned features | All members |
-| 2 | Draft functional and non-functional requirements | Members 1 and 2 |
-| 3 | Build DFD and Use Case Diagram | Members 3 and 4 |
-| 4 | Build Class Diagram and Data Model | Members 5 and 3 |
-| 5 | Complete interface descriptions and wireframes | Members 1, 2, and 5 |
-| 6 | Cross-check diagrams, terminology, and requirement IDs | All members; Member 5 consolidates |
+| 1 | Thống nhất phạm vi, chức năng hiện có và chức năng dự kiến | Cả nhóm |
+| 2 | Soạn yêu cầu chức năng và phi chức năng | Thành viên 1 và 2 |
+| 3 | Xây dựng DFD và Use Case Diagram | Thành viên 3 và 4 |
+| 4 | Xây dựng Class Diagram và Data Model | Thành viên 5 và 3 |
+| 5 | Hoàn thiện mô tả giao diện và wireframe | Thành viên 1, 2 và 5 |
+| 6 | Kiểm tra tính nhất quán, thuật ngữ và mã yêu cầu | Cả nhóm; thành viên 5 tổng hợp |
 
-## 10.1 Final Review Checklist
+## 10.1. Checklist trước khi hoàn thành tài liệu
 
-- [ ] Functional requirements describe specific, testable behavior.
-- [ ] Non-functional requirements include measurable criteria or are clearly marked as targets to be defined.
-- [ ] Implemented, planned, and unsupported features are distinguished.
-- [ ] DFD processes match the functional requirements.
-- [ ] Use cases represent real user goals and system behavior.
-- [ ] Class responsibilities and relationships match the intended architecture.
-- [ ] Data Model reflects actual persistence needs and does not invent a database.
-- [ ] Interface screens match the documented functionality.
-- [ ] Privacy and data-retention statements have been checked against the code.
-- [ ] All diagrams have titles, readable labels, and consistent terminology.
+- [ ] Yêu cầu chức năng mô tả hành vi cụ thể và có thể kiểm thử.
+- [ ] Yêu cầu phi chức năng có tiêu chí đo lường hoặc được ghi rõ là mục tiêu cần xác định.
+- [ ] Phân biệt chức năng đã triển khai, đang phát triển và chưa hỗ trợ.
+- [ ] Các tiến trình trong DFD phù hợp với yêu cầu chức năng.
+- [ ] Use Case phản ánh mục tiêu thực tế của người dùng và hành vi hệ thống.
+- [ ] Trách nhiệm và quan hệ lớp phù hợp với kiến trúc dự kiến.
+- [ ] Data Model phản ánh nhu cầu lưu trữ thực tế, không tự giả định có cơ sở dữ liệu.
+- [ ] Các màn hình giao diện phù hợp với danh sách chức năng.
+- [ ] Nội dung về quyền riêng tư và lưu trữ đã được kiểm tra với mã nguồn.
+- [ ] Các sơ đồ có tiêu đề, nhãn dễ đọc và thuật ngữ nhất quán.
 
-## 10.2 Safety and Scope Statement
+## 10.2. Lưu ý về phạm vi và an toàn
 
-SafetyDriver is intended to identify observable signs associated with potential drowsiness and provide an alert. Detection results can be affected by lighting, camera placement, occlusion, device performance, and other conditions. The application must not be described as a substitute for adequate rest, responsible driving, or professional medical assessment.
+SafetyDriver hướng đến việc nhận diện các dấu hiệu quan sát được có thể liên quan đến buồn ngủ và đưa ra cảnh báo. Kết quả có thể bị ảnh hưởng bởi ánh sáng, vị trí camera, việc che khuất khuôn mặt, hiệu năng thiết bị và các điều kiện khác. Không mô tả ứng dụng như công cụ thay thế việc nghỉ ngơi đầy đủ, lái xe có trách nhiệm hoặc đánh giá y tế chuyên môn.
