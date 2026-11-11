@@ -50,3 +50,16 @@ Suggested commit messages:
 Agree on the interfaces between camera frames, landmarks, feature values,
 drowsiness results, alerts, and database records. Treat missing or invalid
 measurements explicitly; do not silently replace them with valid-looking values.
+
+## Running the UI
+
+```
+npm install
+npm run web      # browser preview
+npm run android  # needs Android SDK / a device
+```
+
+The app is an Expo (React Native + TypeScript) project. Screens follow the Figma
+file "SafetyDriver – Drowsiness Warning App". Camera, vision, alarm sound and
+storage are not wired yet: `src/demoData.ts` supplies sample values, and in dev
+builds tapping the camera preview steps through awake → alert → no face → error.

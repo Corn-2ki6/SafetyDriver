@@ -1,0 +1,88 @@
+import { useEffect, useMemo, useState } from 'react';
+import { View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import {
+  useFonts,
+  BeVietnamPro_400Regular,
+  BeVietnamPro_500Medium,
+  BeVietnamPro_600SemiBold,
+  BeVietnamPro_700Bold,
+  BeVietnamPro_800ExtraBold,
+} from '@expo-google-fonts/be-vietnam-pro';
+import { TabBar, type Tab } from './src/components/TabBar';
+import { demoEvents, demoMetrics } from './src/demoData';
+import { AlertScreen } from './src/screens/AlertScreen';
+import { ErrorScreen } from './src/screens/ErrorScreen';
+import { HistoryScreen } from './src/screens/HistoryScreen';
+import { HomeScreen } from './src/screens/HomeScreen';
+import { MonitorScreen } from './src/screens/MonitorScreen';
+import { SettingsScreen } from './src/screens/SettingsScreen';
+import { colors } from './src/theme';
+import { defaultSettings, type MonitorState } from './src/types';
+
+const DEMO_CYCLE: MonitorState[] = ['awake', 'alert', 'noFace', 'error'];
+
+export default function App() {
+  const [fontsLoaded] = useFonts({
+    BeVietnamPro_400Regular,
+    BeVietnamPro_500Medium,
+    BeVietnamPro_600SemiBold,
+    BeVietnamPro_700Bold,
+    BeVietnamPro_800ExtraBold,
+  });
+  const [tab, setTab] = useState<Tab>('monitor');
+  // shortcut: plain state instead of a navigation library and a real controller.
+  // Replace `state` with the MonitoringController output when features/drowsiness lands.
+  const [state, setState] = useState<MonitorState>('idle');
+  const [settings, setSettings] = useState(defaultSettings);
+  const [elapsedSec, setElapsedSec] = useState(0);
+
+  const errorAt = useMemo(() => new Date(), [state]);
+  const monitoring = state !== 'idle' && state !== 'error';
+  useEffect(() => {
+    if (!monitoring) return;
+    const id = setInterval(() => setElapsedSec((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, [monitoring]);
+
+  const start = () => {
+    setElapsedSec(0);
+    setState('awake');
+  };
+  const stop = () => setState('idle');
+  // Dev builds only: tap the camera preview to step through the monitoring states.
+  const nextDemoState = __DEV__ ? () => setState((s) => DEMO_CYCLE[(DEMO_CYCLE.indexOf(s) + 1) % DEMO_CYCLE.length]) : undefined;
+
+  if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
+
+  const alerting = tab === 'monitor' && state === 'alert';
+  return (
+    <SafeAreaProvider>
+      <StatusBar style="light" />
+      <View style={{ flex: 1, backgroundColor: colors.bg }}>
+        {alerting ? (
+          <AlertScreen metrics={demoMetrics.alert} settings={settings} onStop={stop} onPreviewPress={nextDemoState} />
+        ) : tab === 'history' ? (
+          <HistoryScreen events={settings.saveHistory ? demoEvents : []} />
+        ) : tab === 'settings' ? (
+          <SettingsScreen settings={settings} onChange={setSettings} />
+        ) : state === 'idle' ? (
+          <HomeScreen onStart={start} />
+        ) : state === 'error' ? (
+          <ErrorScreen code="CAMERA_DISCONNECTED" at={errorAt} onRetry={start} />
+        ) : (
+          <MonitorScreen
+            faceFound={state === 'awake'}
+            elapsedSec={elapsedSec}
+            metrics={demoMetrics[state === 'awake' ? 'awake' : 'noFace']}
+            settings={settings}
+            onStop={stop}
+            onPreviewPress={nextDemoState}
+          />
+        )}
+        {alerting ? null : <TabBar active={tab} onChange={setTab} />}
+      </View>
+    </SafeAreaProvider>
+  );
+}
