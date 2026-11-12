@@ -1,0 +1,63 @@
+{
+  "scope": "CPU prototype smoke test; public still image + synthetic stream, not road/device accuracy benchmark",
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "python": "3.12.14",
+  "dependencies": {
+    "mediapipe": "0.10.32",
+    "opencv-contrib-python": "4.11.0.86",
+    "numpy": "2.2.6"
+  },
+  "modelSha256": "64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff",
+  "sampleSha256": "a6f11efaa834706db23f275b6115058fa87fc7f14362681e6abe14e82749de3e",
+  "cases": [
+    {
+      "case": "portrait",
+      "status": "FACE_DETECTED",
+      "landmarkCount": 478,
+      "inferenceMs": 14.874,
+      "passed": true
+    },
+    {
+      "case": "blank",
+      "status": "NO_FACE",
+      "landmarkCount": 0,
+      "inferenceMs": 3.18,
+      "passed": true
+    },
+    {
+      "case": "rotated_portrait_corrected",
+      "status": "FACE_DETECTED",
+      "landmarkCount": 478,
+      "inferenceMs": 7.555,
+      "passed": true
+    },
+    {
+      "case": "video_timestamp_0",
+      "status": "FACE_DETECTED",
+      "landmarkCount": 478,
+      "inferenceMs": 12.024,
+      "passed": true
+    },
+    {
+      "case": "video_timestamp_100",
+      "status": "FACE_DETECTED",
+      "landmarkCount": 478,
+      "inferenceMs": 5.995,
+      "passed": true
+    },
+    {
+      "case": "video_timestamp_200",
+      "status": "NO_FACE",
+      "landmarkCount": 0,
+      "inferenceMs": 6.794,
+      "passed": true
+    },
+    {
+      "case": "video_timestamp_300",
+      "status": "FACE_DETECTED",
+      "landmarkCount": 478,
+      "inferenceMs": 8.069,
+      "passed": true
+    }
+  ]
+}
