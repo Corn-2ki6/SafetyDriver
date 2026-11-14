@@ -55,14 +55,22 @@ measurements explicitly; do not silently replace them with valid-looking values.
 
 ```
 npm install
-npm run web      # browser preview
-npm run android  # needs Android SDK / a device
+npm run web       # live camera preview, without face analysis
+npx expo run:android  # native camera and face analysis; needs Android SDK / device
 ```
 
-The app is an Expo (React Native + TypeScript) project. Screens follow the Figma
-file "SafetyDriver – Drowsiness Warning App". Camera, vision, alarm sound and
-storage are not wired yet: `src/demoData.ts` supplies sample values, and in dev
-builds tapping the camera preview steps through awake → alert → no face → error.
+The Android development build uses the local `safetydriver-camera` Expo module
+(CameraX + MediaPipe Face Landmarker). The first Gradle build downloads the
+model and verifies its SHA-256 checksum; an internet connection is required.
+Expo Go does not include this local native module. The browser build can show a
+live camera preview, but currently does not run face analysis.
+
+On Android, camera frames are analyzed on-device; only landmarks and frame
+metadata are sent to JavaScript, where EAR/MAR and continuous eye-closure timing
+drive preliminary alert rules. These rules are not a validated driver-safety
+system and must not replace attentive driving or other safety measures. Native
+camera and vision support is Android-only; iOS still needs its own native
+implementation.
 
 ## Screens
 

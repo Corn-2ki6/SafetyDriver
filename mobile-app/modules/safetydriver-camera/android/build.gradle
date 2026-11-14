@@ -1,0 +1,72 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.safetydriver.camera'
+version = '1.0.0'
+
+android {
+  namespace 'com.safetydriver.camera'
+  defaultConfig {
+    minSdkVersion 24
+  }
+  androidResources {
+    noCompress 'task'
+  }
+}
+
+dependencies {
+  def cameraxVersion = '1.6.0'
+  implementation "androidx.camera:camera-core:${cameraxVersion}"
+  implementation "androidx.camera:camera-camera2:${cameraxVersion}"
+  implementation "androidx.camera:camera-lifecycle:${cameraxVersion}"
+  implementation "androidx.camera:camera-view:${cameraxVersion}"
+  implementation 'androidx.core:core-ktx:1.18.0'
+  implementation 'com.google.mediapipe:tasks-vision:0.10.35'
+}
+
+def modelAsset = file('src/main/assets/face_landmarker.task')
+tasks.register('downloadFaceLandmarkerModel') {
+  outputs.file(modelAsset)
+  outputs.upToDateWhen { false }
+  doLast {
+    def expectedSha256 = '64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff'
+    def sha256 = { File candidate ->
+      java.security.MessageDigest.getInstance('SHA-256')
+        .digest(candidate.bytes)
+        .collect { String.format('%02x', it) }
+        .join()
+    }
+
+    if (modelAsset.exists() && sha256(modelAsset) == expectedSha256) {
+      return
+    }
+
+    modelAsset.parentFile.mkdirs()
+    def temporaryAsset = new File(modelAsset.parentFile, 'face_landmarker.task.download')
+    def connection = new URL('https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task')
+      .openConnection()
+    connection.connectTimeout = 30000
+    connection.readTimeout = 60000
+    connection.inputStream.withCloseable { input ->
+      temporaryAsset.withOutputStream { output -> output << input }
+    }
+    if (sha256(temporaryAsset) != expectedSha256) {
+      temporaryAsset.delete()
+      throw new GradleException('Downloaded MediaPipe model checksum mismatch.')
+    }
+    if (modelAsset.exists() && !modelAsset.delete()) {
+      temporaryAsset.delete()
+      throw new GradleException('Unable to replace the invalid MediaPipe model asset.')
+    }
+    if (!temporaryAsset.renameTo(modelAsset)) {
+      temporaryAsset.delete()
+      throw new GradleException('Unable to place the MediaPipe model asset.')
+    }
+  }
+}
+
+tasks.named('preBuild').configure {
+  dependsOn tasks.named('downloadFaceLandmarkerModel')
+}

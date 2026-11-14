@@ -8,6 +8,9 @@ node_modules/
 dist/
 web-build/
 expo-env.d.ts
+modules/safetydriver-camera/android/src/main/assets/face_landmarker.task
+modules/safetydriver-camera/android/src/main/assets/face_landmarker.task.download
+modules/safetydriver-camera/android/build/
 
 # Native
 .kotlin/

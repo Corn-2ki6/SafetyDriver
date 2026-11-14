@@ -1,23 +1,40 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { EyeOff, Square, TriangleAlert, Volume2, VolumeX } from 'lucide-react-native';
+import { Square, TriangleAlert, VolumeX } from 'lucide-react-native';
 import { CameraPreview } from '../components/CameraPreview';
 import { Button, Card, Chip, ProgressBar } from '../components/ui';
 import { num } from '../format';
 import { colors, tint, type } from '../theme';
 import type { Metrics, Settings } from '../types';
+import type { CameraFrameEvent } from '../../modules/safetydriver-camera/src';
 
 const AUTO_DISMISS_SEC = 3;
 
-type Props = { metrics: Metrics; settings: Settings; onStop: () => void; onPreviewPress?: () => void };
+type Props = {
+  metrics: Metrics;
+  settings: Settings;
+  alertDetail: string;
+  onStop: () => void;
+  onPreviewPress?: () => void;
+  onCameraReady: () => void;
+  onCameraError: (message: string) => void;
+  onCameraFrame: (frame: CameraFrameEvent) => void;
+};
 
 /** 04 · Cảnh báo buồn ngủ. Full screen, no tab bar. */
-export function AlertScreen({ metrics, settings, onStop, onPreviewPress }: Props) {
+export function AlertScreen({
+  metrics,
+  settings,
+  alertDetail,
+  onStop,
+  onPreviewPress,
+  onCameraReady,
+  onCameraError,
+  onCameraFrame,
+}: Props) {
   const insets = useSafeAreaInsets();
-  // shortcut: only tracks the muted flag; play and stop the alarm in features/alerts.
-  const [muted, setMuted] = useState(false);
   const flash = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -36,8 +53,24 @@ export function AlertScreen({ metrics, settings, onStop, onPreviewPress }: Props
     <View style={styles.screen}>
       <LinearGradient colors={['rgba(240, 69, 69, 0.35)', 'rgba(240, 69, 69, 0.05)']} style={StyleSheet.absoluteFill} />
       <View style={[styles.content, { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 26 }]}>
-        <CameraPreview height={200} accent={colors.danger} overlay="face" fps={metrics.fps} onPress={onPreviewPress}>
-          <Chip solid color={colors.danger} icon={EyeOff} label={`Mắt nhắm ${num(metrics.eyesClosedSec, 1, 's')}`} style={styles.bottomChip} />
+        <CameraPreview
+          height={200}
+          accent={colors.danger}
+          overlay="face"
+          fps={metrics.fps}
+          onPress={onPreviewPress}
+          cameraActive
+          onCameraReady={onCameraReady}
+          onCameraError={onCameraError}
+          onCameraFrame={onCameraFrame}
+        >
+          <Chip
+            solid
+            color={colors.danger}
+            icon={TriangleAlert}
+            label={`EAR ${num(metrics.ear, 2)} · MAR ${num(metrics.mar, 2)}`}
+            style={styles.bottomChip}
+          />
         </CameraPreview>
 
         <View style={styles.ring}>
@@ -49,15 +82,8 @@ export function AlertScreen({ metrics, settings, onStop, onPreviewPress }: Props
         <Text style={[type.display, styles.center, { color: colors.danger }]} accessibilityRole="alert">
           CẢNH BÁO BUỒN NGỦ!
         </Text>
-        <Text style={[type.body, styles.center]}>
-          Phát hiện mắt nhắm liên tục hơn {settings.eyesClosedSec.toFixed(0)} giây. Hãy tấp vào nơi an toàn và nghỉ ngơi.
-        </Text>
-        <Chip
-          color={muted ? colors.muted : colors.danger}
-          icon={muted ? VolumeX : Volume2}
-          label={muted ? 'Đã tắt chuông' : 'Chuông báo động đang phát'}
-          style={{ alignSelf: 'center' }}
-        />
+        <Text style={[type.body, styles.center]}>{alertDetail}. Hãy tấp vào nơi an toàn và nghỉ ngơi.</Text>
+        <Chip color={colors.muted} icon={VolumeX} label="Âm thanh cảnh báo chưa được tích hợp" style={{ alignSelf: 'center' }} />
 
         <Card style={{ gap: 8 }}>
           <View style={styles.between}>
@@ -70,7 +96,6 @@ export function AlertScreen({ metrics, settings, onStop, onPreviewPress }: Props
         </Card>
 
         <View style={{ flex: 1 }} />
-        <Button label={muted ? 'Bật chuông' : 'Tắt chuông'} icon={muted ? VolumeX : Volume2} variant="secondary" onPress={() => setMuted((m) => !m)} />
         <Button label="Dừng giám sát" icon={Square} fillIcon variant="danger" onPress={onStop} />
       </View>
       <Animated.View pointerEvents="none" style={[styles.border, { opacity: flash }]} />
