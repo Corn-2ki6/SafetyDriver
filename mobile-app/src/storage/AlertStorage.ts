@@ -11,27 +11,36 @@ const VALID_KINDS: AlertKind[] = [
   'headNod',
 ];
 
+function isAlertKind(value: unknown): value is AlertKind {
+  return typeof value === 'string' && VALID_KINDS.includes(value as AlertKind);
+}
+
 // Chuyển dữ liệu lưu trong máy thành AlertEvent
-function parseEvent(data: any): AlertEvent | null {
+function parseEvent(data: unknown): AlertEvent | null {
+  if (typeof data !== 'object' || data === null) {
+    return null;
+  }
+
+  const candidate = data as Record<string, unknown>;
+
   if (
-    !data ||
-    typeof data.id !== 'string' ||
-    !VALID_KINDS.includes(data.kind) ||
-    typeof data.detail !== 'string'
+    typeof candidate.id !== 'string' ||
+    !isAlertKind(candidate.kind) ||
+    typeof candidate.detail !== 'string'
   ) {
     return null;
   }
 
-  const at = new Date(data.at);
+  const at = new Date(candidate.at as string | number | Date);
 
   if (!Number.isFinite(at.getTime())) {
     return null;
   }
 
   return {
-    id: data.id,
-    kind: data.kind,
-    detail: data.detail,
+    id: candidate.id,
+    kind: candidate.kind,
+    detail: candidate.detail,
     at,
   };
 }

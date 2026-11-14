@@ -7,7 +7,7 @@
     "@expo/metro-runtime": "~58.0.17",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/slider": "5.2.1",
-    "expo": "~58.0.23",
+    "expo": "~58.0.25",
     "expo-font": "~58.0.11",
     "expo-linear-gradient": "~58.0.3",
     "expo-status-bar": "~58.0.4",
@@ -25,8 +25,8 @@
   },
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web"
   },
   "private": true

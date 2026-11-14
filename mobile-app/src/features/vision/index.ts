@@ -24,13 +24,19 @@ export type FaceLandmarks = VisionFrame & (
   | { status: 'FACE_DETECTED'; landmarks: Landmark[]; regions: Regions }
   | { status: 'NO_FACE' | 'INVALID_LANDMARKS'; landmarks: []; regions: null }
 );
+type ExtractedRegions =
+  | { status: 'FACE_DETECTED'; landmarks: Landmark[]; regions: Regions }
+  | { status: 'NO_FACE' | 'INVALID_LANDMARKS'; landmarks: []; regions: null };
+
+function isRotation(value: unknown): value is Rotation {
+  return value === 0 || value === 90 || value === 180 || value === 270;
+}
 
 /** Validate native coordinates before any EAR/MAR/head-pose consumer uses them.
  * Empty array means no face. Missing/malformed data means invalid, never no face.
  * Coordinates may extend outside the image; do not clamp or invent values.
  */
-export function extractRegions(points: unknown):
-  Pick<FaceLandmarks, 'status' | 'landmarks' | 'regions'> {
+export function extractRegions(points: unknown): ExtractedRegions {
   if (Array.isArray(points) && points.length === 0) {
     return { status: 'NO_FACE', landmarks: [], regions: null };
   }
@@ -45,4 +51,57 @@ export function extractRegions(points: unknown):
     ([name, indices]) => [name, indices.map(index => landmarks[index])],
   )) as Regions;
   return { status: 'FACE_DETECTED', landmarks, regions };
+}
+
+export function parseVisionFrame(value: unknown): FaceLandmarks | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const frame = value as Record<string, unknown>;
+  const rotation = frame.rotationApplied;
+  if (
+    frame.schemaVersion !== 1 ||
+    typeof frame.timestampMs !== 'number' ||
+    !Number.isFinite(frame.timestampMs) ||
+    frame.timestampMs < 0 ||
+    typeof frame.width !== 'number' ||
+    !Number.isFinite(frame.width) ||
+    frame.width <= 0 ||
+    typeof frame.height !== 'number' ||
+    !Number.isFinite(frame.height) ||
+    frame.height <= 0 ||
+    !isRotation(rotation) ||
+    frame.mirrored !== false ||
+    typeof frame.inferenceMs !== 'number' ||
+    !Number.isFinite(frame.inferenceMs) ||
+    frame.inferenceMs < 0
+  ) {
+    return null;
+  }
+
+  const metadata: VisionFrame = {
+    schemaVersion: 1,
+    timestampMs: frame.timestampMs,
+    width: frame.width,
+    height: frame.height,
+    rotationApplied: rotation,
+    mirrored: false,
+    inferenceMs: frame.inferenceMs,
+  };
+
+  if (frame.status === 'NO_FACE') {
+    if (!Array.isArray(frame.landmarks) || frame.landmarks.length !== 0) {
+      return { ...metadata, ...extractRegions(null) };
+    }
+    return { ...metadata, ...extractRegions([]) };
+  }
+  if (frame.status === 'INVALID_LANDMARKS') {
+    return { ...metadata, ...extractRegions(null) };
+  }
+  if (frame.status === 'FACE_DETECTED') {
+    const extracted = extractRegions(frame.landmarks);
+    if (extracted.status === 'FACE_DETECTED') {
+      return { ...metadata, ...extracted };
+    }
+    return { ...metadata, ...extractRegions(null) };
+  }
+  return null;
 }

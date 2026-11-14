@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { extractRegions, REGION_INDICES } from '../../src/features/vision/index.ts';
+import { extractRegions, parseVisionFrame, REGION_INDICES } from '../../src/features/vision/index.ts';
 
 test('no face and malformed/missing data remain distinct', () => {
   assert.deepEqual(extractRegions([]), { status: 'NO_FACE', landmarks: [], regions: null });
@@ -18,4 +18,31 @@ test('groups preserve subject-side indices, input is copied, next loss clears re
   points[0].x = 99;
   assert.equal(result.landmarks[0].x, 0);
   assert.equal(extractRegions([]).regions, null);
+});
+
+test('vision frame parsing preserves no-face and rejects malformed face landmarks', () => {
+  const metadata = {
+    schemaVersion: 1,
+    timestampMs: 42,
+    width: 640,
+    height: 480,
+    rotationApplied: 90,
+    mirrored: false,
+    inferenceMs: 7,
+  };
+
+  assert.equal(parseVisionFrame({
+    ...metadata,
+    status: 'NO_FACE',
+    landmarks: [],
+  }).status, 'NO_FACE');
+  assert.equal(parseVisionFrame({
+    ...metadata,
+    status: 'FACE_DETECTED',
+    landmarks: [],
+  }).status, 'INVALID_LANDMARKS');
+  assert.equal(
+    parseVisionFrame({ ...metadata, status: 'NO_FACE', landmarks: [{}] }).status,
+    'INVALID_LANDMARKS',
+  );
 });
