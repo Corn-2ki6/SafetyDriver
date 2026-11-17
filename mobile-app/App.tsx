@@ -1,8 +1,9 @@
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+
 import {
   useFonts,
   BeVietnamPro_400Regular,
@@ -14,6 +15,7 @@ import {
 
 import { TabBar, type Tab } from './src/components/TabBar';
 import { demoMetrics } from './src/demoData';
+
 import { AlertScreen } from './src/screens/AlertScreen';
 import { ErrorScreen } from './src/screens/ErrorScreen';
 import { HistoryScreen } from './src/screens/HistoryScreen';
@@ -22,12 +24,22 @@ import { MonitorScreen } from './src/screens/MonitorScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 
 import { AlertSys } from './src/features/alerts/AlertSys';
+
 import {
   getAlertEvents,
   saveAlertEvent,
+  clearAlertEvents,
 } from './src/storage/AlertStorage';
 
+import {
+  checkDatabaseTables,
+  checkDatabaseData,
+  createMonitoringSession,
+  finishMonitoringSession,
+} from './src/storage/Database';
+
 import { colors } from './src/theme';
+
 import {
   defaultSettings,
   type AlertEvent,
@@ -55,19 +67,39 @@ export default function App() {
   const [settings, setSettings] = useState(defaultSettings);
   const [elapsedSec, setElapsedSec] = useState(0);
 
-  // Danh sách cảnh báo đã lưu
+  // ID phiên giám sát hiện tại
+  const sessionIdRef = useRef<string | null>(null);
+
+  // Danh sách cảnh báo
   const [events, setEvents] = useState<AlertEvent[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
 
-  // Khởi tạo hệ thống cảnh báo TV4
+  // Hệ thống cảnh báo
   const alertSys = useMemo(() => new AlertSys(), []);
 
   const errorAt = useMemo(() => new Date(), [state]);
-  const monitoring = state !== 'idle' && state !== 'error';
 
-  // Đọc lịch sử từ bộ nhớ điện thoại khi mở ứng dụng
+  // Đọc database và lịch sử khi mở ứng dụng
   useEffect(() => {
     let active = true;
+
+    checkDatabaseTables()
+      .then((tables) => {
+        console.log('SQLite tables:', tables);
+      })
+      .catch((error) => {
+        console.error('SQLite error:', error);
+      });
+
+    checkDatabaseData()
+      .then(({ sessions, alerts }) => {
+        console.log('===== SQLITE DATA CHECK =====');
+        console.log('Monitoring sessions:', sessions);
+        console.log('Alert events:', alerts);
+      })
+      .catch((error) => {
+        console.error('SQLite data check error:', error);
+      });
 
     getAlertEvents()
       .then((savedEvents) => {
@@ -89,15 +121,92 @@ export default function App() {
     };
   }, []);
 
-  // Tạo và lưu cảnh báo khi hệ thống chuyển sang trạng thái alert
+  // Bắt đầu phiên giám sát
+  const start = async () => {
+    try {
+      if (sessionIdRef.current) {
+        await finishMonitoringSession(
+          sessionIdRef.current,
+          'interrupted',
+        );
+
+        sessionIdRef.current = null;
+      }
+
+      const sessionId = await createMonitoringSession();
+
+      sessionIdRef.current = sessionId;
+
+      setElapsedSec(0);
+      alertSys.resetCooldowns();
+      setState('awake');
+
+      console.log('Monitoring started:', sessionId);
+    } catch (error) {
+      console.error('Cannot start monitoring:', error);
+      setState('error');
+    }
+  };
+
+  // Kết thúc phiên giám sát
+  const stop = async () => {
+    const sessionId = sessionIdRef.current;
+
+    try {
+      if (sessionId) {
+        await finishMonitoringSession(
+          sessionId,
+          'completed',
+        );
+
+        console.log('Monitoring stopped:', sessionId);
+      }
+    } catch (error) {
+      console.error('Cannot finish monitoring:', error);
+    } finally {
+      sessionIdRef.current = null;
+      setState('idle');
+      setElapsedSec(0);
+    }
+  };
+
+  // Xóa toàn bộ lịch sử cảnh báo trong SQLite
+  const clearHistory = async () => {
+    try {
+      await clearAlertEvents();
+
+      setEvents([]);
+
+      console.log(
+        'SQLite: Alert history cleared successfully',
+      );
+    } catch (error) {
+      console.error(
+        'Cannot clear alert history:',
+        error,
+      );
+    }
+  };
+
+  // Tạo và lưu cảnh báo khi trạng thái chuyển sang alert
   useEffect(() => {
     if (!historyLoaded) return;
     if (state !== 'alert') return;
     if (!settings.saveHistory) return;
 
+    const sessionId = sessionIdRef.current;
+
+    if (!sessionId) {
+      console.warn(
+        'Không có phiên giám sát để lưu cảnh báo.',
+      );
+      return;
+    }
+
     const event = alertSys.trigger({
       kind: 'eyesClosed',
-      detail: 'Phát hiện nhắm mắt kéo dài trong quá trình giám sát.',
+      detail:
+        'Phát hiện nhắm mắt kéo dài trong quá trình giám sát.',
     });
 
     if (!event) return;
@@ -108,52 +217,55 @@ export default function App() {
       ),
     );
 
-    saveAlertEvent(event).catch((error) => {
-      console.warn('Không thể lưu cảnh báo:', error);
+    saveAlertEvent(sessionId, event).catch((error) => {
+      console.warn(
+        'Không thể lưu cảnh báo:',
+        error,
+      );
     });
-  }, [state, settings.saveHistory, historyLoaded, alertSys]);
-
-  // Đếm thời gian giám sát
-  useEffect(() => {
-    if (!monitoring) return;
-
-    const id = setInterval(
-      () => setElapsedSec((s) => s + 1),
-      1000,
-    );
-
-    return () => clearInterval(id);
-  }, [monitoring]);
-
-  const start = () => {
-    setElapsedSec(0);
-    setState('awake');
-  };
-
-  const stop = () => setState('idle');
+  }, [
+    state,
+    settings.saveHistory,
+    historyLoaded,
+    alertSys,
+  ]);
 
   // Chuyển trạng thái mô phỏng trong bản development
   const nextDemoState = __DEV__
     ? () =>
         setState(
-          (s) =>
+          (currentState) =>
             DEMO_CYCLE[
-              (DEMO_CYCLE.indexOf(s) + 1) % DEMO_CYCLE.length
+              (DEMO_CYCLE.indexOf(currentState) + 1) %
+                DEMO_CYCLE.length
             ],
         )
     : undefined;
 
   if (!fontsLoaded) {
-    return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: colors.bg,
+        }}
+      />
+    );
   }
 
-  const alerting = tab === 'monitor' && state === 'alert';
+  const alerting =
+    tab === 'monitor' && state === 'alert';
 
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
 
-      <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: colors.bg,
+        }}
+      >
         {alerting ? (
           <AlertScreen
             metrics={demoMetrics.alert}
@@ -164,6 +276,7 @@ export default function App() {
         ) : tab === 'history' ? (
           <HistoryScreen
             events={settings.saveHistory ? events : []}
+            onClear={clearHistory}
           />
         ) : tab === 'settings' ? (
           <SettingsScreen
@@ -182,7 +295,11 @@ export default function App() {
           <MonitorScreen
             faceFound={state === 'awake'}
             elapsedSec={elapsedSec}
-            metrics={demoMetrics[state === 'awake' ? 'awake' : 'noFace']}
+            metrics={
+              demoMetrics[
+                state === 'awake' ? 'awake' : 'noFace'
+              ]
+            }
             settings={settings}
             onStop={stop}
             onPreviewPress={nextDemoState}
@@ -190,7 +307,10 @@ export default function App() {
         )}
 
         {alerting ? null : (
-          <TabBar active={tab} onChange={setTab} />
+          <TabBar
+            active={tab}
+            onChange={setTab}
+          />
         )}
       </View>
     </SafeAreaProvider>
