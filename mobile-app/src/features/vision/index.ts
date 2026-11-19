@@ -1,3 +1,4 @@
+import type { FeatureVector } from './features.ts';
 /** CV-03 handoff. Detection geometry only; not identity or fatigue recognition. */
 export type Rotation = 0 | 90 | 180 | 270;
 export interface Landmark { x: number; y: number; z: number }
@@ -19,6 +20,9 @@ export interface VisionFrame {
   mirrored: false;
   /** Processing time, not camera FPS or an accuracy score. */
   inferenceMs: number;
+  /** Additive CV-04 outputs; optional for older producers. */
+  poseMatrix?: number[][] | null;
+  features?: FeatureVector;
 }
 export type FaceLandmarks = VisionFrame & (
   | { status: 'FACE_DETECTED'; landmarks: Landmark[]; regions: Regions }

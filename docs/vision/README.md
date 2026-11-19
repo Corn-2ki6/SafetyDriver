@@ -1,83 +1,147 @@
-# Bàn giao Vision: chạy thử khuôn mặt / landmarks
+# Bài nộp Thành viên 3 — Computer Vision
 
-## Đối chiếu outline và mã nguồn
+Ngày bàn giao: 19/11/2026. Kiểm thử thực hiện ngày 18/11/2026. Đề tài: SafetyDriver mobile.
 
-Căn cứ `Safetydriver plan.md` trên main tại commit `0d22d2b27fab4b078db239d5de0b67037ec2b8cd`, nhiệm vụ thuộc Thành viên 3 — Computer Vision. Trước thay đổi, `mobile-app/src/features/vision` và `python-prototype` chỉ có `.gitkeep`; giao diện mobile dùng dữ liệu mẫu.
+## Phạm vi theo yêu cầu nhóm trưởng
 
-| Outline | Bàn giao trong nhánh này | Giới hạn nghiệm thu |
+| Yêu cầu trong ảnh giao việc | File bàn giao | Kết quả |
 |---|---|---|
-| CV-01 — prototype, đầu vào/đầu ra, hướng dẫn chạy | Python module tách khỏi GUI; CLI ảnh/video/webcam; yêu cầu phiên bản; test tái lập | Đã chạy Linux CPU; webcam Windows chưa chạy trực tiếp |
-| CV-02 — xác minh hướng MediaPipe Android | Phân tích API chính thức, luồng Kotlin ↔ camera ↔ RN bên dưới | Chưa có native bridge hoặc build/device Android; chưa nghiệm thu runtime mobile |
-| CV-03 — chuẩn hóa landmarks | 478 điểm, nhóm mắt/miệng/đầu, trạng thái thiếu dữ liệu; hợp đồng TypeScript và kiểm thử | Nhóm miệng tối thiểu chưa định nghĩa công thức MAR; phải thống nhất ở CV-04 |
-| CV-04 — EAR/MAR/pitch | Chỉ cung cấp điểm đầu vào | Chưa triển khai trong task chạy thử này |
-| CV-05 — độ bền | Ca mất mặt và xoay đúng chiều | Kính, che mặt, ánh sáng yếu, nhiều người, góc nghiêng cần dữ liệu và thiết bị thực |
+| Kiểm tra code Python hiện có | Báo cáo kiểm tra bên dưới; `detector.py` | Giữ prototype tách khỏi GUI; bổ sung đặc trưng vào pipeline |
+| Xác minh phát hiện khuôn mặt và landmarks | `detector.py`, `smoke_test.py` | Chạy model MediaPipe thật; 478 điểm, mất mặt và tái xuất hiện |
+| Xây dựng EAR/MAR/pitch nếu hỗ trợ | `features.py`, `src/features/vision/features.ts` | Hàm độc lập, kiểm thử công thức, ma trận và dữ liệu thiếu |
+| Test có mặt, không mặt, thiếu dữ liệu | `tests/test_detector.py`, `tests/test_features.py`, tests Node | Có kiểm thử tự động, JSON bằng chứng |
+| Module kiểm thử được và ví dụ đầu vào/đầu ra | [Ví dụ đầu vào](examples/feature-cases.json), [đầu ra](examples/feature-outputs.json) | Có dữ liệu hình học tổng hợp, đáp án tính tay và hướng dẫn tái lập |
 
-Prototype desktop tham khảo không phải runtime mobile. Bản này dùng MediaPipe **Tasks FaceLandmarker**, không phụ thuộc GUI desktop hoặc API `solutions.face_mesh` cũ. Không dùng thông tin cá nhân từ tài liệu mẫu môn khác.
+Theo `Safetydriver plan.md`, phần này bao phủ prototype CV-01, hợp đồng CV-03, đặc trưng CV-04; CV-02 có bằng chứng API và phương án Android; CV-05 có các phép thử tổng hợp và giới hạn. **Chưa có nghiệm thu runtime Android/iPhone hay so sánh với camera thiết bị thật.** Python là công cụ thử nghiệm/đối chiếu, không phải runtime React Native.
 
-## Kết quả đã chạy
+## Kiểm tra mã nguồn trước khi bổ sung
 
-Bằng chứng máy đọc được: [smoke-results.json](smoke-results.json).
+Đã đọc nhánh `feature/vision-landmarks` tại commit `9fe8990` và main `ae338cc`:
 
-- 8 kiểm thử Python: dữ liệu thiếu/NaN, chọn nhóm điểm, quay ảnh, timestamp và đóng tài nguyên: đạt.
-- 2 kiểm thử Node/TypeScript: phân biệt mất mặt với dữ liệu sai; nhóm điểm và tránh giữ dữ liệu cũ: đạt.
-- 7 ca inference bằng model thật: ảnh chân dung, ảnh đen, ảnh xoay hiệu chỉnh và 4 frame VIDEO có mặt/mất mặt/tái xuất hiện: đạt.
-- Kiểm tra TypeScript strict (6.0.3) và `pip check`: đạt. CLI giải mã video MJPG tổng hợp 4 frame, giữ timestamp 0/100/200/300 ms và trả mã lỗi 1 với ảnh không đọc được: đạt.
-- Ảnh có mặt trả 478 điểm; ảnh đen trả `NO_FACE`, `[]`, `null`.
+- Detector dùng MediaPipe Tasks, giới hạn một mặt, có IMAGE/VIDEO, timestamp và quay ảnh; trả nhóm mắt/miệng/đầu; đã có test mất mặt và dữ liệu sai.
+- Còn thiếu hàm tính EAR/MAR/pitch; tính năng xuất ma trận tư thế đang tắt. Đã bật ma trận và bổ sung `features.py` có thể gọi độc lập.
+- Giữ nguyên index landmarks, tên `timestampMs`, đầu vào BGR uint8 và chính sách không ghi hình mặc định. `poseMatrix`/`features` là trường bổ sung, `schemaVersion=1` được giữ vì các trường cũ không đổi; TS cho phép producer cũ chưa có hai trường mới.
+- DrowsinessState trên main nhận `Metrics` nullable. Bàn giao EAR/MAR/pitch theo đúng tên `ear`, `mar`, `pitchDeg`; chưa nối camera/native hoặc thay đổi luật TV4.
+- Không lấy thông tin cá nhân của tài liệu mẫu môn khác. Không commit ảnh/video người dùng, model binary hoặc môi trường ảo.
 
-Đây là kiểm thử chức năng trên một ảnh công khai và dữ liệu tổng hợp, không phải “độ chính xác 100%”, không đại diện giao thông, Android hoặc cảnh báo buồn ngủ. Thời gian inference trong JSON chỉ mô tả lần chạy CPU đó.
+## Cấu trúc và cách chạy
 
-## Các nhóm điểm bàn giao
+- [Hướng dẫn Windows chi tiết](../../mobile-app/python-prototype/vision/README.md).
+- Python: `mobile-app/python-prototype/vision/`.
+- TypeScript: `mobile-app/src/features/vision/`.
+- Kiểm thử JS/TS: `mobile-app/tests/vision/`.
 
-Trái/phải theo phía người được chụp, đầu vào không mirror. Index bắt đầu từ 0.
+Trong thư mục `mobile-app/python-prototype/vision`, dùng Python 3.12:
 
-| Nhóm | Index theo thứ tự | Sử dụng dự kiến |
-|---|---|---|
-| Mắt trái | 362, 385, 387, 263, 373, 380 | Hai khóe và hai cặp mí; làm đầu vào EAR |
-| Mắt phải | 33, 160, 158, 133, 153, 144 | Tương tự |
-| Miệng | 61, 13, 291, 14 | Khóe, tâm môi trong trên, khóe, tâm môi trong dưới |
-| Đầu | 1, 152, 33, 263, 61, 291 | Mũi, cằm, khóe mắt, khóe miệng; anchor cho bước pose |
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe download_assets.py --sample
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+.\.venv\Scripts\python.exe smoke_test.py
+.\.venv\Scripts\python.exe run.py --image inputs/portrait.jpg --annotated outputs/portrait.png --jsonl outputs/portrait.jsonl
+.\.venv\Scripts\python.exe run.py --camera 0 --display
+```
 
-EAR/MAR phải dùng tọa độ pixel hoặc hiệu chỉnh tỉ lệ width/height trước tính khoảng cách; không tính trực tiếp x/y chuẩn hóa khi ảnh không vuông. Anchor không tự cho ra pitch: còn cần mô hình 3D tương ứng, camera intrinsics và quy ước trục. Không thay pitch thiếu bằng 0. Không dùng blendshape hoặc thời gian inference làm độ tin cậy buồn ngủ.
+Nhấn Q để đóng preview. Trên Linux/macOS dùng `.venv/bin/python`. Có thể chạy video bằng `--video inputs/demo.mp4`; prototype giả định video FPS cố định. Webcam và Windows chưa được truy cập để xác nhận trực tiếp trong lần bàn giao này.
 
-## Hướng tích hợp mobile (CV-02)
+Tại thư mục `mobile-app`, Node 24:
 
-Outline chọn React Native + TypeScript, VisionCamera và Kotlin/MediaPipe Android. Tài liệu MediaPipe xác nhận Android hỗ trợ `FaceLandmarker`, `MPImage`, chế độ `LIVE_STREAM`, listener kết quả/lỗi và timestamp tăng dần. Đây là bằng chứng API khả thi, chưa là bằng chứng build thành công trên Expo/RN của repo.
+```sh
+node --experimental-strip-types --test tests/vision/*.test.mjs
+node --experimental-strip-types tests/vision/parity.mjs
+```
 
-Luồng đề xuất để TV2/TV3 thống nhất:
+Lệnh parity dùng `outputs/portrait.jsonl` do Python vừa tạo. Có thể truyền đường dẫn JSONL khác làm đối số đầu tiên. Đây là so sánh công thức trên cùng dữ liệu, không phải chạy model native trên điện thoại.
 
-1. Camera cấp `FrameInput` đã được TV2 đề xuất tại nhánh `feature/camera-permission`: `timestampMs`, `width`, `height`, `orientation`, `pixelFormat`, `handle`. Giữ frame ở native, không đưa byte ảnh qua JS.
-2. Adapter Kotlin đọc buffer theo pixel format/stride thực tế, đổi YUV→RGB nếu cần, đưa về đúng chiều **một lần** và không mirror inference. Quản lý vòng đời frame đúng API camera; không giữ buffer sau khi chủ sở hữu giải phóng.
-3. Dùng MediaPipe Tasks Android và model version 1 có checksum như prototype. Chọn CPU trước để xác minh; GPU là bước đo/đánh giá sau. Phiên bản Maven, Gradle, minSdk và tương thích RN/Expo cần chốt bằng build thật, không dùng `latest.release` cho bản nghiệm thu.
-4. Một detector cho một phiên, `LIVE_STREAM` với kết quả bất đồng bộ; timestamp cùng đồng hồ nguồn và tăng nghiêm ngặt. Chỉ một frame đang xử lý hoặc chính sách bỏ frame khi bận; không xếp hàng tăng độ trễ. Đóng detector khi dừng/background và bỏ callback của phiên cũ.
-5. Trả cấu trúc `FaceLandmarks` trong `src/features/vision/index.ts`. Empty landmarks là `NO_FACE`; dữ liệu không đủ 478/không hữu hạn là `INVALID_LANDMARKS`. Lỗi native phải đi qua kênh lỗi riêng và dừng/reset pipeline, không giả lập mất mặt.
-6. UI scale/crop tọa độ theo preview; mirror overlay chỉ khi preview mirror. TV4 nhận landmarks hợp lệ hoặc mất dữ liệu để reset timer; chưa thay số liệu mẫu bằng dữ liệu giả có vẻ thật.
+## Công thức và quy ước
 
-`main` hiện là Expo UI; Expo Go không chứa native MediaPipe module tùy chỉnh. Cần development build/native Android và cài thư viện vào build. Không chạy Python bên trong Expo Go, không lấy việc demo Python thành công để kết luận mobile đã hoạt động. iOS là nhánh tích hợp riêng; phần bàn giao này không chứng nhận iPhone.
+Đầu vào đã quay về đúng chiều, không mirror. x/y chuẩn hóa đổi về pixel `(x*width, y*height)` trước tính khoảng cách Euclid; z không dùng để tính EAR/MAR. Trái/phải theo người được chụp.
 
-Không cherry-pick nguyên nhánh Camera vào đây vì nhánh đó còn độc lập; hợp đồng Vision bổ sung metadata đầu ra, giữ tên `timestampMs` và đơn vị phù hợp TV2. Cần thống nhất `orientation` là góc quay để đưa frame về đúng chiều và xử lý camera trước/sau trước khi nối thật.
-
-## Kịch bản demo để nộp nhóm trưởng
-
-1. Chạy ảnh mẫu theo [hướng dẫn](../../mobile-app/python-prototype/vision/README.md): màn hình/ảnh kết quả có `FACE_DETECTED` và 478 điểm.
-2. Chạy webcam với `--display`: mặt ở giữa, quay nhẹ; đưa mặt ra khỏi khung rồi trở lại. Ghi nhận mất mặt không còn điểm cũ. Chỉ ghi hình khi người xuất hiện đồng ý.
-3. Chạy tests và `smoke_test.py`; nộp mã nguồn, JSON kết quả, ảnh chụp màn hình demo của chính mình nếu cần.
-4. Báo cáo: “Đã chạy thử phát hiện mặt/landmarks bằng MediaPipe, chuẩn hóa đầu ra cho mobile. Chưa nghiệm thu trên Android và chưa triển khai kết luận buồn ngủ.”
-
-## Các ca còn phải chạy trên thiết bị
-
-| Ca | Tiêu chí cần ghi nhận |
+| Đặc trưng | Điểm và công thức |
 |---|---|
-| Android camera trước, dọc/ngang | Overlay đúng vị trí, đúng bên mắt, không quay/mirror hai lần |
-| Mất mặt 3 giây rồi quay lại | Dữ liệu và timer cũ được xóa; bắt lại mặt đúng |
-| Kính, che mắt/miệng, thiếu sáng, nghiêng đầu | Không coi điểm suy đoán là đo lường đáng tin; cần quy tắc chất lượng bổ sung |
-| Hai người trong khung | Không chuyển nhầm hành khách; chốt vùng tài xế/chiến lược chọn mặt |
-| Background/foreground, từ chối quyền | Dừng tài nguyên, không callback cũ; thông báo lỗi phù hợp |
-| Phiên 10–15 phút | Đo FPS đầu-cuối, p50/p95 latency, frame drop, bộ nhớ, nhiệt và pin trên máy cụ thể |
+| EAR trái | `p1..p6=[362,385,387,263,373,380]`; `(d(p2,p6)+d(p3,p5))/(2*d(p1,p4))` |
+| EAR phải | Cùng công thức với `[33,160,158,133,153,144]` |
+| EAR tổng | Trung bình hai mắt, chỉ có khi cả hai EAR hợp lệ |
+| MAR | Phiên bản 4 điểm: `d(13,14)/d(61,291)`, độ mở môi trong / chiều rộng miệng |
+| Pitch | Từ ma trận MediaPipe canonical→observed, lấy rotation R; quy ước `R=Rz*Ry*Rx`, `pitchDeg=atan2(R[2,1],R[2,2])*180/pi` |
 
-## Nguồn kỹ thuật
+MAR có nhiều định nghĩa. Phiên bản này cố định bốn điểm; **không mặc nhiên dùng lại ngưỡng 0.6 ở Settings hoặc ngưỡng của công thức MAR khác**. TV4 cần hiệu chỉnh ngưỡng trên dữ liệu thực phù hợp. Các ca tổng hợp mở/nhắm mắt kiểm tra toán học, không chứng minh nhận dạng nhắm mắt trên người thật.
 
-- [Outline của nhóm](../../Safetydriver%20plan.md).
-- [MediaPipe Face Landmarker, Python và Android](https://developers.google.com/edge/mediapipe/solutions/vision/face_landmarker).
-- [Mã mẫu Android chính thức](https://github.com/google-ai-edge/mediapipe-samples/tree/main/examples/face_landmarker/android).
-- [Expo: thêm native code](https://docs.expo.dev/workflow/customizing/).
-- Model và ảnh smoke-test: URL + SHA256 được cố định trong `download_assets.py`; tải riêng, không commit binary hay ảnh chân dung.
+Ma trận pose là mảng lồng 4×4 theo hàng. Loại bỏ uniform positive scale; từ chối shear, reflection, scale không đều, NaN/Inf, sai hàng affine, hoặc gimbal lock. `pitchDeg` là góc Rx có dấu theo hệ canonical của model; 0° tương ứng rotation identity. Đây không phải góc đầu đã hiệu chuẩn so với xe. Cần lấy tư thế trung tính và xác minh chiều cúi/ngẩng trên điện thoại trước sử dụng ngưỡng. Native adapter phải chuyển đúng layout, không đưa thẳng mảng column-major vào hàm này.
+
+Không tự dựng mô hình mặt 3D hoặc camera intrinsics giả để làm PnP; phương pháp đã chọn sử dụng đầu ra ma trận được MediaPipe hỗ trợ.
+
+## Hợp đồng đầu ra và dữ liệu thiếu
+
+`Detector.detect(...)` trả metadata frame, `status`, `landmarks`, `regions`, `poseMatrix` và `features`.
+`extract_features(points,width,height,matrix)` / `extractFeatures(...)` trả:
+
+```json
+{
+  "earLeft": null,
+  "earRight": null,
+  "ear": null,
+  "mar": null,
+  "pitchDeg": null,
+  "issues": ["NO_FACE"]
+}
+```
+
+- `[]` là không có mặt; `None`/`null`, thiếu 478 điểm, NaN/Inf là `INVALID_LANDMARKS`. Không coi missing là một mặt có số đo 0.
+- Mẫu số mắt/miệng ≤ 1e-6 pixel: trường liên quan là `null`. Mắt nhắm thật trong dữ liệu hình học hợp lệ có thể cho EAR=0; khác với dữ liệu thiếu.
+- Điểm cần đo ngoài ảnh: vô hiệu nhóm đó, không clamp tọa độ. Thiếu pose vẫn có thể giữ EAR/MAR hợp lệ.
+- Mất mặt xóa toàn bộ đặc trưng ngay; không giữ số của frame trước.
+- `issues=[]` chỉ nghĩa là hợp lệ về hình học và cấu trúc; **không phải chứng nhận chất lượng ảnh hoặc độ tin cậy của model**.
+- Frame sai/model lỗi/timestamp không tăng: exception hoặc mã thoát CLI khác 0; không đổi lỗi thành `NO_FACE`.
+
+Ví dụ tích hợp TV4 sau khi camera/native sẵn sàng:
+
+```ts
+const features = extractFeatures(result.landmarks, result.width, result.height, result.poseMatrix);
+const metrics = {
+  ear: features.ear, mar: features.mar, pitchDeg: features.pitchDeg,
+  fps: null, eyesClosedSec: null, eyesOpenSec: null, noFaceSec: null,
+};
+```
+
+Timer thuộc MonitoringController/TV4, không được lấy EAR một frame để giả lập số giây nhắm mắt. `INVALID_LANDMARKS`/lỗi frame phải báo unknown/error và reset timer; chỉ `NO_FACE` mới là mất mặt. Không đưa `features` trực tiếp vào TV4 như thể đã có đủ timer. TV4 hiện chưa dùng pitch; cần thống nhất trước khi bổ sung luật.
+
+## Bằng chứng kiểm thử
+
+| Kiểm tra | Kết quả |
+|---|---|
+| Python unittest | 15 tests đạt: 8 detector + 7 feature tests |
+| Node tests | 6 tests đạt; có dùng chung bộ đáp án tính tay với Python |
+| TypeScript strict | Module Vision kiểm tra bằng TypeScript 6.0.3 đạt |
+| Model thật | 7 ca đạt: chân dung, đen, xoay hiệu chỉnh, VIDEO liên tiếp/mất mặt/tái xuất hiện |
+| Python ↔ TS | Cùng output model; sai lệch tối đa ghi trong [parity-results.json](parity-results.json), dưới 1e-9 |
+| Thư viện | Python 3.12.14, MediaPipe 0.10.32, OpenCV contrib 4.11.0.86, NumPy 2.2.6; pip check đạt |
+
+[smoke-results.json](smoke-results.json) có thời gian chạy, phiên bản, checksum model/ảnh và giá trị đặc trưng thực tế. Ảnh mẫu cho EAR khoảng 0.2044, MAR 0.1737, pitch 3.8938°; đây là đầu ra model trên một ảnh công khai, không có nhãn buồn ngủ và không dùng để kết luận trạng thái tài xế.
+
+## Thử độ bền và giới hạn đã phát hiện
+
+Chạy `python robustness_test.py` sau khi tải ảnh mẫu; xem [robustness-results.json](robustness-results.json).
+
+- Đã quan sát các biến đổi: ánh sáng 20%, tăng sáng bão hòa, che vùng mắt, xoay ảnh 25°.
+- Ở lần chạy này cả bốn ảnh vẫn trả mặt và đặc trưng. Trường hợp che mắt vẫn trả EAR: model có thể suy đoán vị trí bị che. Không có nhãn chuẩn để khẳng định số đo đúng.
+- Chưa có bộ kiểm định chất lượng/che khuất tự động. Khi biết mặt bị che, thiếu sáng nặng hoặc tracking không tin cậy, pipeline tích hợp phải bỏ feature khỏi đánh giá và yêu cầu điều chỉnh camera; không suy diễn “issues rỗng” thành an toàn.
+- Xoay ảnh 2D không thay thế thử người quay đầu 3D. Chưa thử kính, nhiều người, góc yaw lớn, camera trước/sau, nhiệt/pin hoặc độ trễ dài hạn.
+- `num_faces=1` không bảo đảm khung hình chỉ có một người và không gán đúng danh tính tài xế. Cần ROI/chiến lược chọn người trước triển khai thật.
+
+## Hướng mobile và phần nghiệm thu tiếp theo
+
+Tài liệu chính thức MediaPipe có Android `FaceLandmarker`, `MPImage`, `LIVE_STREAM` và ma trận tư thế. Dùng Kotlin/native nhận buffer camera, đổi pixel format/stride, quay một lần và chuyển cấu trúc kết quả sang RN; không truyền ảnh base64 qua JS cho mỗi frame. Giữ timestamp monotonic, giới hạn frame đang xử lý, đóng detector khi dừng/background và bỏ callback phiên cũ.
+
+Expo Go không chứa native module MediaPipe tùy chỉnh; cần development/native build. Phiên bản Maven/Gradle và tích hợp VisionCamera phải xác minh bằng build thiết bị, không chọn `latest.release` cho bản nghiệm thu. Không chạy Python trong Expo Go. Overlay phải xử lý scale/crop/mirror tương ứng preview.
+
+Bài nộp này hoàn thành **module prototype và bàn giao đặc trưng theo ảnh giao việc**. Chưa chứng nhận ứng dụng mobile hoạt động hoàn chỉnh hoặc độ chính xác 100%. Nhóm cần kiểm thử Android và đối chiếu camera thực trước nghiệm thu CV-02/CV-05 ở mức thiết bị.
+
+## Nguồn và tài liệu
+
+- [Outline nhóm](../../Safetydriver%20plan.md).
+- [MediaPipe Face Landmarker](https://developers.google.com/edge/mediapipe/solutions/vision/face_landmarker): model 478 điểm, output transformation matrix.
+- [Android sample chính thức](https://github.com/google-ai-edge/mediapipe-samples/tree/main/examples/face_landmarker/android).
+- [Expo custom native code](https://docs.expo.dev/workflow/customizing/).
+- Model version 1 và ảnh thử công khai: URL/checksum cố định trong `download_assets.py`.

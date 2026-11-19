@@ -1,0 +1,7 @@
+{
+  "scope": "Python vs TypeScript on identical exported model outputs, not Android native inference",
+  "frames": 1,
+  "tolerance": 1e-9,
+  "maxAbsoluteDifference": 8.881784197001252e-16,
+  "passed": true
+}
