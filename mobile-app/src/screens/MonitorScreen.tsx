@@ -1,22 +1,38 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { Eye, Info, ScanFace, Smartphone, Smile, Square, Sun, TriangleAlert, User, X } from 'lucide-react-native';
 import { CameraPreview } from '../components/CameraPreview';
+import type { CameraFrameEvent } from '../../modules/safetydriver-camera/src';
 import { Button, Card, Chip, Header, IconRow, MetricCard, ProgressBar, Screen, StatusPill } from '../components/ui';
 import { duration, num } from '../format';
 import { colors, tint, type } from '../theme';
 import type { Metrics, Settings } from '../types';
 
 type Props = {
-  faceFound: boolean;
+  faceFound: boolean | null;
+  starting: boolean;
   elapsedSec: number;
   metrics: Metrics;
   settings: Settings;
   onStop: () => void;
   onPreviewPress?: () => void;
+  onCameraReady: () => void;
+  onCameraError: (message: string) => void;
+  onCameraFrame: (frame: CameraFrameEvent) => void;
 };
 
-/** 03 · Đang giám sát – Tỉnh táo and 05 · Không phát hiện khuôn mặt. */
-export function MonitorScreen({ faceFound, elapsedSec, metrics, settings, onStop, onPreviewPress }: Props) {
+/** Keep the live camera preview visible while waiting for face-analysis results. */
+export function MonitorScreen({
+  faceFound,
+  starting,
+  elapsedSec,
+  metrics,
+  settings,
+  onStop,
+  onPreviewPress,
+  onCameraReady,
+  onCameraError,
+  onCameraFrame,
+}: Props) {
   const { ear, mar, pitchDeg, eyesClosedSec, noFaceSec } = metrics;
   const eyesOpen = ear != null && ear >= settings.earThreshold;
   const yawning = mar != null && mar >= settings.marThreshold;
@@ -25,13 +41,69 @@ export function MonitorScreen({ faceFound, elapsedSec, metrics, settings, onStop
     <Screen>
       <Header
         caption={`Phiên giám sát · ${duration(elapsedSec)}`}
-        title="Đang giám sát"
-        right={faceFound ? <StatusPill label="Tỉnh táo" color={colors.success} /> : <StatusPill label="Không thấy khuôn mặt" color={colors.warning} />}
+        title={
+          starting
+            ? 'Đang kết nối camera'
+            : faceFound === null && Platform.OS === 'web'
+              ? 'Camera trực tiếp'
+              : 'Đang giám sát'
+        }
+        right={
+          starting
+            ? <StatusPill label="Đang khởi tạo" color={colors.warning} />
+            : faceFound === null
+              ? <StatusPill label="Đang chờ kết quả nhận diện" color={colors.warning} />
+              : faceFound
+                ? <StatusPill label="Đã nhận diện khuôn mặt" color={colors.success} />
+                : <StatusPill label="Không thấy khuôn mặt" color={colors.warning} />
+        }
       />
 
-      {faceFound ? (
+      {faceFound === null ? (
         <>
-          <CameraPreview height={300} accent={colors.success} overlay="face" fps={metrics.fps} onPress={onPreviewPress} />
+          <CameraPreview
+            height={300}
+            accent={starting ? colors.warning : colors.primary}
+            cameraActive
+            fps={metrics.fps}
+            onPress={onPreviewPress}
+            onCameraReady={onCameraReady}
+            onCameraError={onCameraError}
+            onCameraFrame={onCameraFrame}
+          />
+          <Card>
+            <View style={styles.cardTitle}>
+              <Info size={20} color={colors.warning} />
+              <Text style={type.headline}>
+                {starting
+                  ? 'Đang khởi tạo camera và bộ nhận diện'
+                  : Platform.OS === 'web'
+                    ? 'Bản web chỉ hiển thị video trực tiếp'
+                    : 'Đang chờ dữ liệu nhận diện'}
+              </Text>
+            </View>
+            <Text style={[type.body, { color: colors.muted }]}>
+              {starting
+                ? 'Chưa có kết quả nhận diện để đánh giá trạng thái tài xế.'
+                : Platform.OS === 'web'
+                  ? 'Phân tích khuôn mặt và đo EAR/MAR hiện chỉ hoạt động trong bản Android native.'
+                  : 'Chưa nhận được landmarks hợp lệ; ứng dụng chưa đưa ra kết luận về trạng thái tài xế.'}
+            </Text>
+          </Card>
+        </>
+      ) : faceFound ? (
+        <>
+          <CameraPreview
+            height={300}
+            accent={colors.success}
+            overlay="face"
+            fps={metrics.fps}
+            onPress={onPreviewPress}
+            cameraActive
+            onCameraReady={onCameraReady}
+            onCameraError={onCameraError}
+            onCameraFrame={onCameraFrame}
+          />
 
           <View style={styles.metrics}>
             <MetricCard
@@ -69,7 +141,17 @@ export function MonitorScreen({ faceFound, elapsedSec, metrics, settings, onStop
         </>
       ) : (
         <>
-          <CameraPreview height={250} accent={colors.warning} overlay="guide" fps={metrics.fps} onPress={onPreviewPress}>
+          <CameraPreview
+            height={250}
+            accent={colors.warning}
+            overlay="guide"
+            fps={metrics.fps}
+            onPress={onPreviewPress}
+            cameraActive
+            onCameraReady={onCameraReady}
+            onCameraError={onCameraError}
+            onCameraFrame={onCameraFrame}
+          >
             <Text style={[type.display, { color: colors.warning }]}>?</Text>
             <Chip solid color={colors.warning} icon={ScanFace} label={`Không thấy khuôn mặt · ${num(noFaceSec, 0, 's')}`} style={styles.bottomChip} />
           </CameraPreview>

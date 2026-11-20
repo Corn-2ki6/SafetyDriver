@@ -1,5 +1,7 @@
 
 import type { Metrics, Settings } from '../../types';
+import type { FaceLandmarks } from '../vision/index.ts';
+import { computeFaceMeasurements } from '../vision/measurements.ts';
 
 export type DrowsinessStatus =
     | 'awake'
@@ -39,6 +41,7 @@ export function evaluateDrowsiness(
 
     const reasons: string[] = [];
     let hasValidMeasurement = false;
+    let eyeClosurePending = false;
 
     const ear = metrics.ear;
     const mar = metrics.mar;
@@ -65,7 +68,7 @@ export function evaluateDrowsiness(
         hasValidMeasurement = true;
 
         if (ear < settings.earThreshold) {
-            reasons.push('EAR thấp: có dấu hiệu nhắm mắt');
+            eyeClosurePending = true;
         }
     }
 
@@ -101,8 +104,134 @@ export function evaluateDrowsiness(
         };
     }
 
+    if (eyeClosurePending && reasons.length === 0) {
+        return {
+            status: 'unknown',
+            reasons: ['Đang theo dõi thời gian nhắm mắt liên tục'],
+        };
+    }
+
     return {
         status: reasons.length > 0 ? 'drowsy' : 'awake',
         reasons,
     };
+}
+
+export type DrowsinessFrameResult = {
+    metrics: Metrics;
+    result: DrowsinessResult;
+};
+
+const MAX_CONTIGUOUS_FRAME_GAP_MS = 500;
+
+function emptyMetrics(noFaceSec: number | null = null): Metrics {
+    return {
+        ear: null,
+        mar: null,
+        pitchDeg: null,
+        fps: null,
+        eyesClosedSec: null,
+        eyesOpenSec: null,
+        noFaceSec,
+    };
+}
+
+export class DrowsinessTracker {
+    private previousTimestampMs: number | null = null;
+    private closedSinceMs: number | null = null;
+    private openSinceMs: number | null = null;
+    private noFaceSinceMs: number | null = null;
+
+    update(frame: FaceLandmarks, settings: Settings): DrowsinessFrameResult {
+        const timestampMs = frame.timestampMs;
+        if (!Number.isFinite(timestampMs) || timestampMs < 0) {
+            this.reset();
+            return this.unknownResult();
+        }
+
+        const previousTimestampMs = this.previousTimestampMs;
+        const firstFrame = previousTimestampMs === null;
+        const gapMs = firstFrame ? 0 : timestampMs - previousTimestampMs;
+        if (!firstFrame && gapMs <= 0) {
+            this.reset();
+            return this.unknownResult();
+        }
+        if (gapMs > MAX_CONTIGUOUS_FRAME_GAP_MS) {
+            this.resetIntervals();
+        }
+        this.previousTimestampMs = timestampMs;
+
+        if (frame.status === 'NO_FACE') {
+            this.closedSinceMs = null;
+            this.openSinceMs = null;
+            this.noFaceSinceMs ??= timestampMs;
+            const metrics = emptyMetrics((timestampMs - this.noFaceSinceMs) / 1000);
+            return {
+                metrics,
+                result: evaluateDrowsiness({ faceFound: false, metrics, settings }),
+            };
+        }
+
+        this.noFaceSinceMs = null;
+        if (frame.status !== 'FACE_DETECTED') {
+            this.closedSinceMs = null;
+            this.openSinceMs = null;
+            return this.unknownResult();
+        }
+
+        const { ear, mar } = computeFaceMeasurements(frame);
+        let eyesClosedSec: number | null = null;
+        let eyesOpenSec: number | null = null;
+
+        if (ear !== null && Number.isFinite(settings.earThreshold) && settings.earThreshold > 0) {
+            if (ear < settings.earThreshold) {
+                this.closedSinceMs ??= timestampMs;
+                this.openSinceMs = null;
+                eyesClosedSec = (timestampMs - this.closedSinceMs) / 1000;
+            } else {
+                this.openSinceMs ??= timestampMs;
+                this.closedSinceMs = null;
+                eyesOpenSec = (timestampMs - this.openSinceMs) / 1000;
+            }
+        } else {
+            this.closedSinceMs = null;
+            this.openSinceMs = null;
+        }
+
+        const metrics: Metrics = {
+            ear,
+            mar,
+            pitchDeg: null,
+            fps: gapMs > 0 ? 1000 / gapMs : null,
+            eyesClosedSec,
+            eyesOpenSec,
+            noFaceSec: null,
+        };
+        return {
+            metrics,
+            result: evaluateDrowsiness({ faceFound: true, metrics, settings }),
+        };
+    }
+
+    reset(): void {
+        this.previousTimestampMs = null;
+        this.resetIntervals();
+    }
+
+    private resetIntervals(): void {
+        this.closedSinceMs = null;
+        this.openSinceMs = null;
+        this.noFaceSinceMs = null;
+    }
+
+    private unknownResult(): DrowsinessFrameResult {
+        const metrics = emptyMetrics();
+        return {
+            metrics,
+            result: {
+                status: 'unknown',
+                reasons: ['Không đủ dữ liệu hợp lệ để đánh giá'],
+            },
+        };
+    }
 }
