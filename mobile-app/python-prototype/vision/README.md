@@ -1,6 +1,6 @@
 # Vision — chạy thử phát hiện khuôn mặt / landmarks
 
-Phục vụ CV-01 và CV-03 trong [outline nhóm](../../../Safetydriver%20plan.md).
+Phục vụ CV-01, CV-03 và CV-04 trong [outline nhóm](../../../Safetydriver%20plan.md).
 Đây là prototype Python để thử mô hình và chốt dữ liệu bàn giao cho mobile.
 “Nhận diện” trong task này là tìm khuôn mặt và điểm đặc trưng, **không xác thực danh tính**.
 Không đưa Python vào ứng dụng React Native; hướng Android ở [báo cáo bàn giao](../../../docs/vision/README.md).
@@ -62,8 +62,26 @@ node --experimental-strip-types --test tests/vision/contract.test.mjs
 | `status` | `FACE_DETECTED`, `NO_FACE`, `INVALID_LANDMARKS` |
 | `landmarks` | 478 phần tử `{x,y,z}` theo đúng thứ tự model, hoặc `[]` |
 | `regions` | Nhóm mắt/miệng/đầu hoặc `null` nếu không có dữ liệu hợp lệ |
+| `poseMatrix` | Ma trận canonical→observed 4×4 theo hàng, hoặc null |
+| `features` | EAR hai mắt/trung bình, MAR 4 điểm, pitchDeg và issues; số đo thiếu là null |
 | `inferenceMs` | Thời gian gọi model, không phải FPS tổng hoặc xác suất chính xác |
 
 x/y chuẩn hóa theo chiều rộng/cao; z là chiều sâu tương đối, không phải mét. Không ép tọa độ ngoài biên vào [0,1] vì làm sai hình học. Lỗi frame/model/timestamp phát sinh exception và CLI thoát khác 0; không biến lỗi thành `NO_FACE`. Khi mất mặt, xóa landmarks/regions ngay, không giữ kết quả cũ.
 
 Chỉ cấu hình `num_faces=1`: không chứng minh ảnh chỉ có một người, không gán danh tính tài xế, không bảo đảm không chuyển sang hành khách. Cần kiểm thử ROI/chọn tài xế trước tích hợp xe thật.
+
+## EAR/MAR/pitch và ví dụ bàn giao
+
+`features.py` không phụ thuộc model: gọi `extract_features(points, width, height, matrix=None)`.
+Đã có bản TypeScript tương ứng trong `src/features/vision/features.ts`.
+Công thức, quy ước góc, ngưỡng vô hiệu và ví dụ đầu vào/đầu ra ở [báo cáo bài nộp](../../../docs/vision/README.md).
+Overlay ảnh/webcam hiện EAR, MAR và pitchDeg; trường thiếu hiện N/A.
+
+Tại thư mục mobile-app, chạy toàn bộ kiểm thử JS và so sánh với output ảnh Python:
+
+```sh
+node --experimental-strip-types --test tests/vision/*.test.mjs
+node --experimental-strip-types tests/vision/parity.mjs
+```
+
+Trong thư mục vision, `python robustness_test.py` ghi quan sát ảnh tối, tăng sáng, che mắt và xoay 2D vào outputs. Các quan sát không phải điểm accuracy. Model vẫn có thể trả landmarks khi vùng mắt bị che; không dùng điều đó làm bằng chứng đo chính xác.

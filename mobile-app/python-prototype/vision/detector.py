@@ -5,12 +5,13 @@ import time
 import cv2
 import mediapipe as mp
 import numpy as np
+from features import extract_features
 
 # Left/right refer to the subject, with unmirrored inference input.
 REGIONS = {
     "leftEye": [362, 385, 387, 263, 373, 380],
     "rightEye": [33, 160, 158, 133, 153, 144],
-    "mouth": [61, 13, 291, 14],  # corners + inner lip centers; no MAR formula implied
+    "mouth": [61, 13, 291, 14],  # corners + inner lip centers; MAR = d(13,14)/d(61,291)
     "headPoseAnchors": [1, 152, 33, 263, 61, 291],
 }
 
@@ -47,7 +48,7 @@ class Detector:
             running_mode=vision.RunningMode.VIDEO if video else vision.RunningMode.IMAGE,
             num_faces=1, min_face_detection_confidence=0.5,
             min_face_presence_confidence=0.5, min_tracking_confidence=0.5,
-            output_face_blendshapes=False, output_facial_transformation_matrixes=False,
+            output_face_blendshapes=False, output_facial_transformation_matrixes=True,
         )
         self.task = vision.FaceLandmarker.create_from_options(options)
 
@@ -64,12 +65,16 @@ class Detector:
         elapsed = (time.perf_counter() - start) * 1000
         self.last_timestamp = timestamp_ms
         status, points, regions = normalize(result.face_landmarks)
+        matrices = result.facial_transformation_matrixes
+        matrix = matrices[0].tolist() if len(matrices) and status == "FACE_DETECTED" else None
+        features = extract_features(points if status != "INVALID_LANDMARKS" else None, frame.shape[1], frame.shape[0], matrix)
         return {
             "schemaVersion": 1, "timestampMs": timestamp_ms,
             "width": frame.shape[1], "height": frame.shape[0],
             "rotationApplied": rotation, "mirrored": False,
             "status": status, "landmarks": points, "regions": regions,
             "inferenceMs": round(elapsed, 3),
+            "poseMatrix": matrix, "features": features,
         }
 
     def close(self):
@@ -88,4 +93,7 @@ def annotate(frame, result, rotation=0):
     for p in result["landmarks"]:
         cv2.circle(canvas, (round(p["x"] * w), round(p["y"] * h)), 1, (70, 220, 70), -1)
     cv2.putText(canvas, result["status"], (12, 25), cv2.FONT_HERSHEY_SIMPLEX, .65, (0, 180, 255), 2)
+    f = result["features"]
+    label = "  ".join(f"{k}: {f[k]:.3f}" if f[k] is not None else f"{k}: N/A" for k in ("ear", "mar", "pitchDeg"))
+    cv2.putText(canvas, label, (12, 52), cv2.FONT_HERSHEY_SIMPLEX, .5, (0, 180, 255), 1)
     return canvas

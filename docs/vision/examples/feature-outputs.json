@@ -1,0 +1,72 @@
+[
+  {
+    "inputCase": "open",
+    "features": {
+      "earLeft": 0.25,
+      "earRight": 0.25,
+      "ear": 0.25,
+      "mar": 0.2,
+      "pitchDeg": 0.0,
+      "issues": []
+    }
+  },
+  {
+    "inputCase": "closed",
+    "features": {
+      "earLeft": 0.0,
+      "earRight": 0.0,
+      "ear": 0.0,
+      "mar": 0.0,
+      "pitchDeg": -20.0,
+      "issues": []
+    }
+  },
+  {
+    "inputCase": "mouth_open",
+    "features": {
+      "earLeft": 0.125,
+      "earRight": 0.125,
+      "ear": 0.125,
+      "mar": 0.5,
+      "pitchDeg": 25.0,
+      "issues": []
+    }
+  },
+  {
+    "inputCase": "portrait_aspect",
+    "features": {
+      "earLeft": 0.25,
+      "earRight": 0.25,
+      "ear": 0.25,
+      "mar": 0.2,
+      "pitchDeg": 0.0,
+      "issues": []
+    }
+  },
+  {
+    "inputCase": "no_face",
+    "features": {
+      "earLeft": null,
+      "earRight": null,
+      "ear": null,
+      "mar": null,
+      "pitchDeg": null,
+      "issues": [
+        "NO_FACE"
+      ]
+    }
+  },
+  {
+    "inputCase": "missing_landmarks",
+    "features": {
+      "earLeft": null,
+      "earRight": null,
+      "ear": null,
+      "mar": null,
+      "pitchDeg": null,
+      "issues": [
+        "INVALID_LANDMARKS"
+      ]
+    }
+  }
+]

@@ -1,0 +1,57 @@
+{
+  "scope": "Synthetic lighting/occlusion/image-roll probes on one image. Not real head yaw or device validation.",
+  "observations": [
+    {
+      "case": "dim_20_percent",
+      "status": "FACE_DETECTED",
+      "features": {
+        "earLeft": 0.1714718555517944,
+        "earRight": 0.18906933064635842,
+        "ear": 0.1802705930990764,
+        "mar": 0.17374507398880845,
+        "pitchDeg": 7.042431559182118,
+        "issues": []
+      },
+      "note": "Observed response only; no measured ground-truth accuracy"
+    },
+    {
+      "case": "bright_clipped",
+      "status": "FACE_DETECTED",
+      "features": {
+        "earLeft": 0.18690676472095805,
+        "earRight": 0.18794021572941252,
+        "ear": 0.18742349022518529,
+        "mar": 0.21522346141068452,
+        "pitchDeg": 5.5597007760966495,
+        "issues": []
+      },
+      "note": "Observed response only; no measured ground-truth accuracy"
+    },
+    {
+      "case": "eye_region_masked",
+      "status": "FACE_DETECTED",
+      "features": {
+        "earLeft": 0.220210282195604,
+        "earRight": 0.21614583957531786,
+        "ear": 0.21817806088546093,
+        "mar": 0.17455071843288444,
+        "pitchDeg": 9.998330597118786,
+        "issues": []
+      },
+      "note": "Observed response only; no measured ground-truth accuracy"
+    },
+    {
+      "case": "image_roll_25_degrees",
+      "status": "FACE_DETECTED",
+      "features": {
+        "earLeft": 0.20100467604096225,
+        "earRight": 0.20273690433787347,
+        "ear": 0.20187079018941786,
+        "mar": 0.18934828942268037,
+        "pitchDeg": 4.01003362092516,
+        "issues": []
+      },
+      "note": "Observed response only; no measured ground-truth accuracy"
+    }
+  ]
+}

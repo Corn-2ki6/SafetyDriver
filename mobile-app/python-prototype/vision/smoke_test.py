@@ -3,6 +3,7 @@ import argparse
 import hashlib
 import json
 import platform
+from datetime import datetime, timezone
 from importlib.metadata import version
 from pathlib import Path
 import cv2
@@ -31,7 +32,10 @@ def main():
             assert result["status"] == expected, result["status"]
             assert len(result["landmarks"]) == (478 if expected == "FACE_DETECTED" else 0)
             assert (result["width"], result["height"]) == (portrait.shape[1], portrait.shape[0])
-            records.append({"case": name, "status": result["status"], "landmarkCount": len(result["landmarks"]), "inferenceMs": result["inferenceMs"], "passed": True})
+            assert (result["features"]["ear"] is not None) if expected == "FACE_DETECTED" else all(result["features"][k] is None for k in ("ear", "mar", "pitchDeg"))
+            if expected == "FACE_DETECTED":
+                assert result["features"]["mar"] is not None and result["features"]["pitchDeg"] is not None
+            records.append({"case": name, "status": result["status"], "landmarkCount": len(result["landmarks"]), "inferenceMs": result["inferenceMs"], "features": result["features"], "passed": True})
     # Separate stream session: verify reacquisition and no stale points after loss.
     with Detector(args.model, video=True) as detector:
         for timestamp, frame, expected in [(0, portrait, "FACE_DETECTED"), (100, portrait, "FACE_DETECTED"), (200, blank, "NO_FACE"), (300, portrait, "FACE_DETECTED")]:
@@ -39,8 +43,12 @@ def main():
             assert result["status"] == expected, (timestamp, result["status"])
             assert len(result["landmarks"]) == (478 if expected == "FACE_DETECTED" else 0)
             assert expected != "NO_FACE" or result["regions"] is None
-            records.append({"case": f"video_timestamp_{timestamp}", "status": result["status"], "landmarkCount": len(result["landmarks"]), "inferenceMs": result["inferenceMs"], "passed": True})
+            assert (result["features"]["ear"] is not None) if expected == "FACE_DETECTED" else all(result["features"][k] is None for k in ("ear", "mar", "pitchDeg"))
+            if expected == "FACE_DETECTED":
+                assert result["features"]["mar"] is not None and result["features"]["pitchDeg"] is not None
+            records.append({"case": f"video_timestamp_{timestamp}", "status": result["status"], "landmarkCount": len(result["landmarks"]), "inferenceMs": result["inferenceMs"], "features": result["features"], "passed": True})
     report = {
+        "testedAtUtc": datetime.now(timezone.utc).isoformat(),
         "scope": "CPU prototype smoke test; public still image + synthetic stream, not road/device accuracy benchmark",
         "platform": platform.platform(), "python": platform.python_version(),
         "dependencies": {name: version(name) for name in ["mediapipe", "opencv-contrib-python", "numpy"]},
