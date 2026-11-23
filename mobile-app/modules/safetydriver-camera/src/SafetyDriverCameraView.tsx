@@ -12,6 +12,8 @@ export type CameraFrameEvent = {
   inferenceMs: number;
   status: 'FACE_DETECTED' | 'NO_FACE' | 'INVALID_LANDMARKS';
   landmarks: { x: number; y: number; z: number }[];
+  /** Optional MediaPipe 4x4 face pose matrix, nested row-major. */
+  poseMatrix?: number[][] | null;
 };
 
 export type CameraErrorEvent = {
