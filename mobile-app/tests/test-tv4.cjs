@@ -84,6 +84,7 @@ test('Missing measurements return unknown', () => {
       ...normalMetrics,
       ear: null,
       mar: null,
+      pitchDeg: null,
       eyesClosedSec: null,
     },
     settings: defaultSettings,
