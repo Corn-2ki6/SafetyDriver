@@ -36,6 +36,14 @@ function isRotation(value: unknown): value is Rotation {
   return value === 0 || value === 90 || value === 180 || value === 270;
 }
 
+function isPoseMatrix(value: unknown): value is number[][] {
+  return Array.isArray(value) && value.length === 4 && value.every(
+    row => Array.isArray(row) && row.length === 4 && row.every(
+      (entry: unknown) => typeof entry === 'number' && Number.isFinite(entry),
+    ),
+  );
+}
+
 /** Validate native coordinates before any EAR/MAR/head-pose consumer uses them.
  * Empty array means no face. Missing/malformed data means invalid, never no face.
  * Coordinates may extend outside the image; do not clamp or invent values.
@@ -89,6 +97,10 @@ export function parseVisionFrame(value: unknown): FaceLandmarks | null {
     rotationApplied: rotation,
     mirrored: false,
     inferenceMs: frame.inferenceMs,
+    // No pose must remain null: never turn missing data into a 0-degree nod.
+    poseMatrix: isPoseMatrix(frame.poseMatrix)
+      ? frame.poseMatrix.map(row => [...row])
+      : null,
   };
 
   if (frame.status === 'NO_FACE') {
