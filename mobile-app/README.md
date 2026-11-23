@@ -13,7 +13,7 @@ algorithms; Python scripts are not assumed to run directly inside React Native.
 - `src/features/vision/` — face detection and feature extraction interfaces
 - `src/features/drowsiness/` — drowsiness state and decision logic
 - `src/features/alerts/` — alert rules and alert presentation
-- `src/storage/` — SQLite access and local persistence
+- `src/storage/` — local alert history (currently AsyncStorage, not SQLite)
 - `src/types/` — shared TypeScript types and data contracts
 - `tests/` — unit and integration tests
 - `python-prototype/` — optional Python experiments and evaluation scripts
@@ -91,9 +91,11 @@ model and verifies its SHA-256 checksum; an internet connection is required.
 Expo Go does not include this local native module. The browser build can show a
 live camera preview, but currently does not run face analysis.
 
-On Android, camera frames are analyzed on-device; only landmarks and frame
-metadata are sent to JavaScript, where EAR/MAR and continuous eye-closure timing
-drive preliminary alert rules. These rules are not a validated driver-safety
+On Android, camera frames are analyzed on-device; landmarks, metadata and the
+optional face pose matrix are sent to JavaScript, where EAR/MAR/pitch and
+continuous measurements drive preliminary alert rules. The native Android module
+also produces a repeating alarm tone when the UI enters the alert state. No
+additional audio package is required. These rules are not a validated driver-safety
 system and must not replace attentive driving or other safety measures. Native
 camera and vision support is Android-only; iOS still needs its own native
 implementation.
@@ -109,3 +111,10 @@ Captured from the web build at 390×844 with sample data.
 | No face detected | Camera error | History | Settings |
 | --- | --- | --- | --- |
 | ![No face detected](docs/screens/05-no-face.png) | ![Camera error](docs/screens/06-camera-error.png) | ![History](docs/screens/07-history.png) | ![Settings](docs/screens/08-settings.png) |
+
+## Fix âm thanh cảnh báo và gục đầu
+
+Xem [kiểm thử âm báo và pitch](docs/alert-audio-head-pitch-fix.md). Cần chạy
+`npm run check` và rebuild Android native (`npm run android`) trước khi thử
+trên điện thoại thật. Mốc pitch và ngưỡng phát hiện gục đầu là thử nghiệm,
+chưa được nghiệm thu về độ chính xác hoặc chiều cúi/ngẩng trên máy thật.
