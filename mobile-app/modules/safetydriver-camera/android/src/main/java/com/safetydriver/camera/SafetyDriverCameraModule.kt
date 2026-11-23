@@ -22,8 +22,17 @@ class SafetyDriverCameraModule : Module() {
   private val nextBeep = object : Runnable {
     override fun run() {
       val generator = alarmTone ?: return
-      generator.startTone(ToneGenerator.TONE_PROP_BEEP2, 450)
-      alarmHandler.postDelayed(this, 900L)
+      try {
+        if (generator.startTone(ToneGenerator.TONE_PROP_BEEP2, 450)) {
+          alarmHandler.postDelayed(this, 900L)
+        } else {
+          Log.w("SafetyDriverAlarm", "Android audio service rejected the alarm tone")
+          stopAlarmInternal()
+        }
+      } catch (error: RuntimeException) {
+        Log.e("SafetyDriverAlarm", "Alarm tone stopped after playback failure", error)
+        stopAlarmInternal()
+      }
     }
   }
 
@@ -58,6 +67,10 @@ class SafetyDriverCameraModule : Module() {
 
     Function("startAlertTone") { volume: Double -> startAlarm(volume) }
     Function("stopAlertTone") { stopAlarm() }
+
+    // Native fallback if JS is paused before AppState can react.
+    OnActivityEntersBackground { stopAlarm() }
+    OnDestroy { stopAlarm() }
 
     View(SafetyDriverCameraView::class) {
       Events("onFrame", "onCameraError", "onCameraReady")
