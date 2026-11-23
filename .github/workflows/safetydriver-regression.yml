@@ -41,10 +41,11 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
       - name: Install Android build tools
-        run: |
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager --install "platforms;android-37" "build-tools;37.0.0" "ndk;27.1.12297006"
+        run: sdkmanager --install "platforms;android-37" "build-tools;37.0.0" "ndk;27.1.12297006"
       - run: npm ci
       - name: Generate Android project
         run: npx expo prebuild --platform android --no-install
