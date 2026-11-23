@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Square, TriangleAlert, VolumeX } from 'lucide-react-native';
+import { Square, TriangleAlert, Volume2, VolumeX } from 'lucide-react-native';
 import { CameraPreview } from '../components/CameraPreview';
 import { Button, Card, Chip, ProgressBar } from '../components/ui';
 import { num } from '../format';
@@ -16,6 +16,7 @@ type Props = {
   metrics: Metrics;
   settings: Settings;
   alertDetail: string;
+  audioPlaying: boolean;
   onStop: () => void;
   onPreviewPress?: () => void;
   onCameraReady: () => void;
@@ -28,6 +29,7 @@ export function AlertScreen({
   metrics,
   settings,
   alertDetail,
+  audioPlaying,
   onStop,
   onPreviewPress,
   onCameraReady,
@@ -83,7 +85,18 @@ export function AlertScreen({
           CẢNH BÁO BUỒN NGỦ!
         </Text>
         <Text style={[type.body, styles.center]}>{alertDetail}. Hãy tấp vào nơi an toàn và nghỉ ngơi.</Text>
-        <Chip color={colors.muted} icon={VolumeX} label="Âm thanh cảnh báo chưa được tích hợp" style={{ alignSelf: 'center' }} />
+        <Chip
+          color={colors.muted}
+          icon={audioPlaying ? Volume2 : VolumeX}
+          label={
+            settings.volume <= 0
+              ? 'Âm thanh đang tắt trong Cài đặt'
+              : audioPlaying
+                ? 'Đã bật cảnh báo âm thanh trên Android'
+                : 'Không thể phát âm thanh trên thiết bị này'
+          }
+          style={{ alignSelf: 'center' }}
+        />
 
         <Card style={{ gap: 8 }}>
           <View style={styles.between}>
