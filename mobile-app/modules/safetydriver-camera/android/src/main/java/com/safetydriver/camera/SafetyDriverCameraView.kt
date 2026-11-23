@@ -123,6 +123,7 @@ class SafetyDriverCameraView(
           .setRunningMode(RunningMode.LIVE_STREAM)
           .setNumFaces(1)
           .setOutputFaceBlendshapes(false)
+          .setOutputFacialTransformationMatrixes(true)
           .setResultListener { result, input ->
             handleResult(result, input.width, input.height, sessionGeneration, processingFrame)
           }
@@ -270,21 +271,37 @@ class SafetyDriverCameraView(
       )
     } ?: emptyList()
 
+    // MediaPipe Java returns a flat COLUMN-major matrix. JS expects nested ROW-major 4x4.
+    // Missing or malformed pose is not a nod: omit it and keep EAR/MAR usable.
+    val poseMatrix: List<List<Double>>? = if (status == "FACE_DETECTED") {
+      result.facialTransformationMatrixes()
+        .orElse(emptyList())
+        .firstOrNull()
+        ?.takeIf { flat -> flat.size == 16 && flat.all { it.isFinite() } }
+        ?.let { flat ->
+          List(4) { row -> List(4) { col -> flat[col * 4 + row].toDouble() } }
+        }
+    } else {
+      null
+    }
+
     mainHandler.post {
       if (disposed || sessionGeneration != generation) return@post
-      onFrame(
-        mapOf(
-          "schemaVersion" to 1,
-          "timestampMs" to timestampMs,
-          "width" to width,
-          "height" to height,
-          "rotationApplied" to rotation,
-          "mirrored" to false,
-          "inferenceMs" to inferenceMs.toDouble(),
-          "status" to status,
-          "landmarks" to landmarks,
-        ),
+      val payload = mutableMapOf<String, Any>(
+        "schemaVersion" to 1,
+        "timestampMs" to timestampMs,
+        "width" to width,
+        "height" to height,
+        "rotationApplied" to rotation,
+        "mirrored" to false,
+        "inferenceMs" to inferenceMs.toDouble(),
+        "status" to status,
+        "landmarks" to landmarks,
       )
+      if (poseMatrix != null) {
+        payload["poseMatrix"] = poseMatrix
+      }
+      onFrame(payload)
     }
   }
 
