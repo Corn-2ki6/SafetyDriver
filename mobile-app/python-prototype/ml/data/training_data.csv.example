@@ -1,0 +1,4 @@
+ear,mar,eyesClosedSec,yawnSec,label
+0.29,0.12,0.0,0.0,awake
+0.12,0.14,2.1,0.0,drowsy
+0.25,0.68,0.0,0.6,drowsy
