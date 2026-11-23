@@ -31,7 +31,7 @@
     "web": "expo start --web",
     "test:vision": "node --experimental-strip-types --test tests/vision/*.test.mjs",
     "test:logic": "tsc --target es2022 --module nodenext --moduleResolution nodenext --skipLibCheck --strict --allowImportingTsExtensions --rewriteRelativeImportExtensions --outDir .test-build src/features/drowsiness/DrowsinessState.ts src/features/alerts/AlertSys.ts src/types/index.ts && node tests/test-tv4.cjs",
-    "check": "tsc --noEmit && npm run test:vision && npm run test:logic"
+    "check": "tsc --project tsconfig.check.json --noEmit && npm run test:vision && npm run test:logic"
   },
   "private": true
 }
