@@ -1,7 +1,7 @@
 
-import type { Metrics, Settings } from '../../types';
+import type { AlertKind, Metrics, Settings } from '../../types';
 import type { FaceLandmarks } from '../vision/index.ts';
-import { computeFaceMeasurements } from '../vision/measurements.ts';
+import { extractFeatures } from '../vision/features.ts';
 
 export type DrowsinessStatus =
     | 'awake'
@@ -13,11 +13,14 @@ export type DrowsinessInput = {
     faceFound: boolean;
     metrics: Metrics;
     settings: Settings;
+    /** True only after a calibrated downward pitch persists long enough. */
+    headNodDetected?: boolean;
 };
 
 export type DrowsinessResult = {
     status: DrowsinessStatus;
     reasons: string[];
+    alertKind?: AlertKind;
 };
 
 /**
@@ -42,6 +45,7 @@ export function evaluateDrowsiness(
     const reasons: string[] = [];
     let hasValidMeasurement = false;
     let eyeClosurePending = false;
+    let prolongedClosure = false;
 
     const ear = metrics.ear;
     const mar = metrics.mar;
@@ -93,7 +97,15 @@ export function evaluateDrowsiness(
         hasValidMeasurement = true;
 
         if (eyesClosedSec >= settings.eyesClosedSec) {
+            prolongedClosure = true;
             reasons.push('Thời gian nhắm mắt đạt ngưỡng');
+        }
+    }
+
+    if (metrics.pitchDeg !== null && Number.isFinite(metrics.pitchDeg)) {
+        hasValidMeasurement = true;
+        if (input.headNodDetected === true) {
+            reasons.push('Cúi đầu kéo dài: nghi ngờ gục đầu');
         }
     }
 
@@ -114,6 +126,10 @@ export function evaluateDrowsiness(
     return {
         status: reasons.length > 0 ? 'drowsy' : 'awake',
         reasons,
+        alertKind: reasons.length === 0 ? undefined
+            : prolongedClosure ? 'eyesClosed'
+            : input.headNodDetected ? 'headNod'
+            : 'yawn',
     };
 }
 
@@ -123,6 +139,11 @@ export type DrowsinessFrameResult = {
 };
 
 const MAX_CONTIGUOUS_FRAME_GAP_MS = 500;
+// Provisional head-nod rules: measure movement relative to a neutral
+// baseline, not absolute model pitch. Verify the sign on a real Android phone.
+const NEUTRAL_CALIBRATION_MS = 800;
+const HEAD_DOWN_DELTA_DEG = 18;
+const HEAD_DOWN_DURATION_MS = 800;
 
 function emptyMetrics(noFaceSec: number | null = null): Metrics {
     return {
@@ -141,6 +162,11 @@ export class DrowsinessTracker {
     private closedSinceMs: number | null = null;
     private openSinceMs: number | null = null;
     private noFaceSinceMs: number | null = null;
+    private neutralSinceMs: number | null = null;
+    private neutralPitchSum = 0;
+    private neutralSampleCount = 0;
+    private neutralPitchDeg: number | null = null;
+    private headDownSinceMs: number | null = null;
 
     update(frame: FaceLandmarks, settings: Settings): DrowsinessFrameResult {
         const timestampMs = frame.timestampMs;
@@ -164,6 +190,7 @@ export class DrowsinessTracker {
         if (frame.status === 'NO_FACE') {
             this.closedSinceMs = null;
             this.openSinceMs = null;
+            this.resetHeadPose();
             this.noFaceSinceMs ??= timestampMs;
             const metrics = emptyMetrics((timestampMs - this.noFaceSinceMs) / 1000);
             return {
@@ -176,10 +203,41 @@ export class DrowsinessTracker {
         if (frame.status !== 'FACE_DETECTED') {
             this.closedSinceMs = null;
             this.openSinceMs = null;
+            this.resetHeadPose();
             return this.unknownResult();
         }
 
-        const { ear, mar } = computeFaceMeasurements(frame);
+        const { ear, mar, pitchDeg } = extractFeatures(
+            frame.landmarks, frame.width, frame.height, frame.poseMatrix ?? null,
+        );
+
+        // No pose => display missing and reset the nod timer; keep valid EAR/MAR.
+        // The neutral calibration assumes the driver looks forward at session start.
+        let headNodDetected = false;
+        if (pitchDeg === null) {
+            this.resetHeadPose();
+        } else if (this.neutralPitchDeg === null) {
+            this.neutralSinceMs ??= timestampMs;
+            this.neutralPitchSum += pitchDeg;
+            this.neutralSampleCount += 1;
+            if (
+                timestampMs - this.neutralSinceMs >= NEUTRAL_CALIBRATION_MS &&
+                this.neutralSampleCount >= 4
+            ) {
+                this.neutralPitchDeg = this.neutralPitchSum / this.neutralSampleCount;
+            }
+        } else {
+            // Negative Rx deviation is treated as downward for this model
+            // convention. Confirm experimentally and flip sign if required.
+            const downwardDelta = this.neutralPitchDeg - pitchDeg;
+            if (downwardDelta >= HEAD_DOWN_DELTA_DEG) {
+                this.headDownSinceMs ??= timestampMs;
+                headNodDetected =
+                    timestampMs - this.headDownSinceMs >= HEAD_DOWN_DURATION_MS;
+            } else {
+                this.headDownSinceMs = null;
+            }
+        }
         let eyesClosedSec: number | null = null;
         let eyesOpenSec: number | null = null;
 
@@ -201,7 +259,7 @@ export class DrowsinessTracker {
         const metrics: Metrics = {
             ear,
             mar,
-            pitchDeg: null,
+            pitchDeg,
             fps: gapMs > 0 ? 1000 / gapMs : null,
             eyesClosedSec,
             eyesOpenSec,
@@ -209,7 +267,7 @@ export class DrowsinessTracker {
         };
         return {
             metrics,
-            result: evaluateDrowsiness({ faceFound: true, metrics, settings }),
+            result: evaluateDrowsiness({ faceFound: true, metrics, settings, headNodDetected }),
         };
     }
 
@@ -222,6 +280,15 @@ export class DrowsinessTracker {
         this.closedSinceMs = null;
         this.openSinceMs = null;
         this.noFaceSinceMs = null;
+        this.resetHeadPose();
+    }
+
+    private resetHeadPose(): void {
+        this.neutralSinceMs = null;
+        this.neutralPitchSum = 0;
+        this.neutralSampleCount = 0;
+        this.neutralPitchDeg = null;
+        this.headDownSinceMs = null;
     }
 
     private unknownResult(): DrowsinessFrameResult {
