@@ -54,10 +54,36 @@ measurements explicitly; do not silently replace them with valid-looking values.
 ## Running the UI
 
 ```
-npm install
-npm run web       # live camera preview, without face analysis
-npx expo run:android  # native camera and face analysis; needs Android SDK / device
+npm ci
+npm run web              # browser: live camera preview, no face analysis
+npm run android          # debug APK: installs, starts Metro, opens the app
+npm run android:release  # release APK: JavaScript is bundled inside, no Metro needed
 ```
+
+How the UI gets its state from `App.tsx`, and what each state shows, is in
+[docs/ui-states.md](docs/ui-states.md).
+
+### "Unable to load script"
+
+The **debug** APK does not contain the app's JavaScript. It downloads it from
+Metro on port 8081 every time it opens. The red "Unable to load script" screen
+means the app could not reach Metro. It is not a bug in the app code.
+
+It appears when the debug app is opened again after the `npm run android`
+terminal was closed, after the computer restarted, or when the APK file was
+copied to another phone.
+
+Fix, with the app already installed:
+
+1. Start Metro in `mobile-app` and keep the terminal open: `npm start`
+2. Real phone over USB only: `adb reverse tcp:8081 tcp:8081`
+   (an emulator reaches the computer by itself)
+3. Open the app again, or press `r` in the Metro terminal.
+
+To hand someone an APK that opens without a computer, build
+`npm run android:release` and share
+`android/app/build/outputs/apk/release/app-release.apk`. It is signed with the
+debug key, which is fine for a demo but not for a store release.
 
 The Android development build uses the local `safetydriver-camera` Expo module
 (CameraX + MediaPipe Face Landmarker). The first Gradle build downloads the

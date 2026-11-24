@@ -216,6 +216,8 @@ export default function App() {
     }
 
     setState((current) => {
+      // A frame still in flight after Stop or an error must not restart monitoring.
+      if (current === 'idle' || current === 'error') return current;
       if (result.status === 'noFace') return 'noFace';
       if (result.status === 'drowsy') return 'alert';
       if (

@@ -1,5 +1,3 @@
-export type MonitorState = 'idle' | 'awake' | 'alert' | 'noFace' | 'error';
-
 /** null = measurement missing or invalid; the UI shows "—" instead of a made-up value. */
 export type Metrics = {
   ear: number | null;
