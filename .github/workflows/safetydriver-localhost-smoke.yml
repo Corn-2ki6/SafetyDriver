@@ -1,0 +1,89 @@
+name: SafetyDriver - localhost web smoke test
+on:
+  push:
+    branches:
+      - test/localhost-web-smoke-20261126
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-localhost:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: mobile-app/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Check TypeScript and Vision/drowsiness tests
+        run: npm run check
+      - name: Compile production web preview
+        run: CI=1 npx expo export --platform web --output-dir dist-localhost-check
+      - name: Serve compiled preview on localhost and check HTTP
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m http.server 19006 --bind 127.0.0.1 --directory dist-localhost-check > /tmp/safetydriver-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          success=0
+          for i in $(seq 1 30); do
+            if curl --fail --silent --show-error -o /tmp/safetydriver-index.html http://127.0.0.1:19006/; then
+              if grep -Eiq '<!doctype html|<html' /tmp/safetydriver-index.html; then
+                echo "PASS: SafetyDriver production web responds with HTML on http://127.0.0.1:19006/"
+                success=1
+                break
+              fi
+            fi
+            sleep 1
+          done
+          if [ "$success" != "1" ]; then
+            echo "Localhost smoke test failed. Server logs:"
+            cat /tmp/safetydriver-http.log
+            exit 1
+          fi
+          echo "Generated assets:"
+          find dist-localhost-check -type f | head -20
+      - name: Verify Expo dev server responds on localhost
+        shell: bash
+        run: |
+          set -euo pipefail
+          CI=1 npm run web -- --host localhost --port 19007 > /tmp/safetydriver-expo.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          success=0
+          for i in $(seq 1 90); do
+            if curl --fail --silent -o /tmp/safetydriver-dev.html http://127.0.0.1:19007/; then
+              if grep -Eiq '<!doctype html|<html' /tmp/safetydriver-dev.html; then
+                echo "PASS: Expo development server responds at http://127.0.0.1:19007/"
+                success=1
+                break
+              fi
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              echo "Expo dev server exited early"
+              cat /tmp/safetydriver-expo.log
+              exit 1
+            fi
+            sleep 2
+          done
+          if [ "$success" != "1" ]; then
+            cat /tmp/safetydriver-expo.log
+            exit 1
+          fi
+      - name: Upload web preview for group handoff
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SafetyDriver-Web-Preview
+          path: mobile-app/dist-localhost-check
+          if-no-files-found: warn
+          retention-days: 7
