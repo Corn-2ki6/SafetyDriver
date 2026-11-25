@@ -46,3 +46,28 @@ test('vision frame parsing preserves no-face and rejects malformed face landmark
     'INVALID_LANDMARKS',
   );
 });
+
+test('pose matrix survives native-to-vision parsing without being fabricated', () => {
+  const frame = {
+    schemaVersion: 1,
+    timestampMs: 100,
+    width: 640,
+    height: 480,
+    rotationApplied: 0,
+    mirrored: false,
+    inferenceMs: 10,
+    status: 'FACE_DETECTED',
+    landmarks: Array.from({ length: 478 }, () => ({ x: .5, y: .5, z: 0 })),
+    poseMatrix: [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]],
+  };
+  const parsed = parseVisionFrame(frame);
+  assert.equal(parsed.status, 'FACE_DETECTED');
+  assert.deepEqual(parsed.poseMatrix, frame.poseMatrix);
+  assert.notEqual(parsed.poseMatrix, frame.poseMatrix);
+  frame.poseMatrix[1][1] = 99;
+  assert.equal(parsed.poseMatrix[1][1], 1);
+
+  const invalid = parseVisionFrame({ ...frame, poseMatrix: [[1]], status: 'NO_FACE', landmarks: [] });
+  assert.equal(invalid.status, 'NO_FACE');
+  assert.equal(invalid.poseMatrix, null);
+});

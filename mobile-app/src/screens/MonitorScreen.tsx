@@ -124,7 +124,7 @@ export function MonitorScreen({
               icon={User}
               label="Tư thế đầu"
               value={num(pitchDeg, 0, '°')}
-              caption={pitchDeg == null ? 'Không có dữ liệu' : 'Ổn định'}
+              caption={pitchDeg == null ? 'Không có dữ liệu' : 'Góc pitch (chưa hiệu chuẩn)'}
               bar={{ value: Math.abs(pitchDeg ?? 0) / 45, color: colors.success }}
             />
           </View>

@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "App.tsx",
+    "index.ts",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "modules/safetydriver-camera/src/**/*.ts",
+    "modules/safetydriver-camera/src/**/*.tsx"
+  ],
+  "exclude": [
+    "tests/**",
+    ".test-build/**",
+    "node_modules/**",
+    "android/**",
+    "ios/**"
+  ]
+}

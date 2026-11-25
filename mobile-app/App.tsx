@@ -1,6 +1,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { PermissionsAndroid, Platform, View } from 'react-native';
+import { AppState, PermissionsAndroid, Platform, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
@@ -21,6 +21,7 @@ import { MonitorScreen } from './src/screens/MonitorScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 
 import { AlertSys } from './src/features/alerts/AlertSys';
+import { startAlertTone, stopAlertTone } from './src/features/alerts/AlertAudio';
 import { DrowsinessTracker } from './src/features/drowsiness/DrowsinessState';
 import { parseVisionFrame } from './src/features/vision';
 import type { CameraFrameEvent } from './modules/safetydriver-camera/src';
@@ -70,6 +71,8 @@ export default function App() {
   const [errorMessage, setErrorMessage] = useState('Không thể khởi động camera.');
   const [metrics, setMetrics] = useState<Metrics>(EMPTY_METRICS);
   const [faceFound, setFaceFound] = useState<boolean | null>(null);
+  const [audioPlaying, setAudioPlaying] = useState(false);
+  const [foreground, setForeground] = useState(AppState.currentState !== 'background');
   const [alertInfo, setAlertInfo] = useState<{ kind: 'eyesClosed' | 'yawn' | 'headNod'; detail: string } | null>(null);
 
   const [events, setEvents] = useState<AlertEvent[]>([]);
@@ -103,6 +106,25 @@ export default function App() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (next) => {
+      setForeground(next === 'active');
+    });
+    return () => subscription.remove();
+  }, []);
+
+  // Audio follows the alert lifecycle. Stop on dismissal, background, mute,
+  // camera errors and component cleanup; do not leave a looping alarm behind.
+  useEffect(() => {
+    if (state === 'alert' && foreground) {
+      setAudioPlaying(startAlertTone(settings.volume));
+    } else {
+      stopAlertTone();
+      setAudioPlaying(false);
+    }
+    return () => stopAlertTone();
+  }, [state, foreground, settings.volume]);
 
   useEffect(() => {
     if (!historyLoaded) return;
@@ -166,6 +188,7 @@ export default function App() {
   }, []);
 
   const onCameraError = useCallback((message: string) => {
+    stopAlertTone();
     setErrorMessage(message);
     setState((current) =>
       current === 'starting' || current === 'monitoring' || current === 'noFace' || current === 'alert'
@@ -175,6 +198,7 @@ export default function App() {
   }, []);
 
   const stop = useCallback(() => {
+    stopAlertTone();
     drowsinessTracker.reset();
     setElapsedSec(0);
     setMetrics(EMPTY_METRICS);
@@ -201,11 +225,9 @@ export default function App() {
     );
 
     if (result.status === 'drowsy') {
-      const eyesClosed =
-        nextMetrics.eyesClosedSec !== null &&
-        nextMetrics.eyesClosedSec >= settings.eyesClosedSec;
-      setAlertInfo((current) => current ?? {
-        kind: eyesClosed ? 'eyesClosed' : 'yawn',
+      const kind = result.alertKind ?? 'eyesClosed';
+      setAlertInfo((current) => current?.kind === kind ? current : {
+        kind,
         detail: result.reasons.join(' · '),
       });
     } else if (
@@ -252,6 +274,7 @@ export default function App() {
             metrics={metrics}
             settings={settings}
             alertDetail={alertInfo?.detail ?? 'Dấu hiệu cần chú ý được phát hiện.'}
+            audioPlaying={audioPlaying}
             onStop={stop}
             onCameraReady={onCameraReady}
             onCameraError={onCameraError}
