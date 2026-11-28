@@ -1,5 +1,4 @@
-
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, PermissionsAndroid, Platform, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -25,10 +24,18 @@ import { startAlertTone, stopAlertTone } from './src/features/alerts/AlertAudio'
 import { DrowsinessTracker } from './src/features/drowsiness/DrowsinessState';
 import { parseVisionFrame } from './src/features/vision';
 import type { CameraFrameEvent } from './modules/safetydriver-camera/src';
+
 import {
   getAlertEvents,
   saveAlertEvent,
+  clearAlertEvents,
 } from './src/storage/AlertStorage';
+import {
+  checkDatabaseTables,
+  checkDatabaseData,
+  createMonitoringSession,
+  finishMonitoringSession,
+} from './src/storage/Database';
 
 import { colors } from './src/theme';
 import {
@@ -55,6 +62,13 @@ const EMPTY_METRICS: Metrics = {
   noFaceSec: null,
 };
 
+type AlertInfo = {
+  kind: 'eyesClosed' | 'yawn' | 'headNod';
+  detail: string;
+};
+
+type SessionEndStatus = 'completed' | 'interrupted';
+
 export default function App() {
   const [fontsLoaded] = useFonts({
     BeVietnamPro_400Regular,
@@ -73,19 +87,40 @@ export default function App() {
   const [faceFound, setFaceFound] = useState<boolean | null>(null);
   const [audioPlaying, setAudioPlaying] = useState(false);
   const [foreground, setForeground] = useState(AppState.currentState !== 'background');
-  const [alertInfo, setAlertInfo] = useState<{ kind: 'eyesClosed' | 'yawn' | 'headNod'; detail: string } | null>(null);
+  const [alertInfo, setAlertInfo] = useState<AlertInfo | null>(null);
 
+  // TV5: giữ ID phiên để gắn từng cảnh báo với đúng phiên giám sát.
+  const sessionIdRef = useRef<string | null>(null);
   const [events, setEvents] = useState<AlertEvent[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
 
   const alertSys = useMemo(() => new AlertSys(), []);
   const drowsinessTracker = useMemo(() => new DrowsinessTracker(), []);
-
   const errorAt = useMemo(() => new Date(), [state]);
-  const monitoring = state === 'monitoring' || state === 'alert' || state === 'noFace';
+  const monitoring =
+    state === 'monitoring' || state === 'alert' || state === 'noFace';
 
+  // Đọc cấu trúc và dữ liệu SQLite, đồng thời nạp lịch sử cảnh báo.
   useEffect(() => {
     let active = true;
+
+    checkDatabaseTables()
+      .then((tables) => {
+        console.log('SQLite tables:', tables);
+      })
+      .catch((error) => {
+        console.error('SQLite error:', error);
+      });
+
+    checkDatabaseData()
+      .then(({ sessions, alerts }) => {
+        console.log('===== SQLITE DATA CHECK =====');
+        console.log('Monitoring sessions:', sessions);
+        console.log('Alert events:', alerts);
+      })
+      .catch((error) => {
+        console.error('SQLite data check error:', error);
+      });
 
     getAlertEvents()
       .then((savedEvents) => {
@@ -96,7 +131,6 @@ export default function App() {
       })
       .catch((error) => {
         console.warn('Không thể đọc lịch sử cảnh báo:', error);
-
         if (active) {
           setHistoryLoaded(true);
         }
@@ -107,6 +141,7 @@ export default function App() {
     };
   }, []);
 
+  // Theo dõi ứng dụng có đang ở foreground hay không.
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (next) => {
       setForeground(next === 'active');
@@ -114,8 +149,7 @@ export default function App() {
     return () => subscription.remove();
   }, []);
 
-  // Audio follows the alert lifecycle. Stop on dismissal, background, mute,
-  // camera errors and component cleanup; do not leave a looping alarm behind.
+  // Âm thanh chỉ phát khi đang cảnh báo và ứng dụng ở foreground.
   useEffect(() => {
     if (state === 'alert' && foreground) {
       setAudioPlaying(startAlertTone(settings.volume));
@@ -126,32 +160,50 @@ export default function App() {
     return () => stopAlertTone();
   }, [state, foreground, settings.volume]);
 
+  const finishActiveSession = useCallback((status: SessionEndStatus) => {
+    const sessionId = sessionIdRef.current;
+    if (!sessionId) return;
+
+    // Xóa ref trước khi gọi SQLite để tránh kết thúc trùng phiên.
+    sessionIdRef.current = null;
+    void finishMonitoringSession(sessionId, status).catch((error) => {
+      console.error('Cannot finish monitoring session:', error);
+    });
+  }, []);
+
+  // TV5: lưu cảnh báo theo sessionId. Dữ liệu loại cảnh báo lấy từ bộ nhận diện mới.
   useEffect(() => {
     if (!historyLoaded) return;
     if (state !== 'alert') return;
     if (!settings.saveHistory) return;
     if (!alertInfo) return;
 
+    const sessionId = sessionIdRef.current;
+    if (!sessionId) {
+      console.warn('Không có phiên giám sát để lưu cảnh báo.');
+      return;
+    }
+
     const event = alertSys.trigger({
       kind: alertInfo.kind,
       detail: alertInfo.detail,
     });
-
     if (!event) return;
 
     setEvents((current) =>
       [event, ...current].sort((a, b) => b.at.getTime() - a.at.getTime()),
     );
 
-    saveAlertEvent(event).catch((error) => {
+    void saveAlertEvent(sessionId, event).catch((error) => {
       console.warn('Không thể lưu cảnh báo:', error);
     });
   }, [state, settings.saveHistory, historyLoaded, alertSys, alertInfo]);
 
+  // Bộ đếm thời gian chỉ chạy khi camera đã bắt đầu giám sát.
   useEffect(() => {
     if (!monitoring) return;
 
-    const id = setInterval(() => setElapsedSec((s) => s + 1), 1000);
+    const id = setInterval(() => setElapsedSec((seconds) => seconds + 1), 1000);
     return () => clearInterval(id);
   }, [monitoring]);
 
@@ -162,7 +214,9 @@ export default function App() {
           PermissionsAndroid.PERMISSIONS.CAMERA,
         );
         if (permission !== PermissionsAndroid.RESULTS.GRANTED) {
-          setErrorMessage('Quyền camera bị từ chối. Hãy cấp quyền camera trong cài đặt Android rồi thử lại.');
+          setErrorMessage(
+            'Quyền camera bị từ chối. Hãy cấp quyền camera trong cài đặt Android rồi thử lại.',
+          );
           setState('error');
           return;
         }
@@ -174,28 +228,54 @@ export default function App() {
       }
     }
 
+    try {
+      // Nếu còn phiên cũ chưa kết thúc, đánh dấu phiên đó bị gián đoạn.
+      const previousSessionId = sessionIdRef.current;
+      if (previousSessionId) {
+        sessionIdRef.current = null;
+        await finishMonitoringSession(previousSessionId, 'interrupted');
+      }
+
+      const sessionId = await createMonitoringSession();
+      sessionIdRef.current = sessionId;
+    } catch (error) {
+      console.error('Cannot create monitoring session:', error);
+      setErrorMessage('Không thể tạo phiên giám sát trong cơ sở dữ liệu.');
+      setState('error');
+      return;
+    }
+
     drowsinessTracker.reset();
+    alertSys.resetCooldowns();
     setMetrics(EMPTY_METRICS);
     setFaceFound(null);
     setAlertInfo(null);
     setErrorMessage('');
-    setState('starting');
     setElapsedSec(0);
-  }, [drowsinessTracker]);
+    setState('starting');
+  }, [alertSys, drowsinessTracker]);
 
   const onCameraReady = useCallback(() => {
-    setState((current) => current === 'starting' ? 'monitoring' : current);
+    setState((current) => (current === 'starting' ? 'monitoring' : current));
   }, []);
 
-  const onCameraError = useCallback((message: string) => {
-    stopAlertTone();
-    setErrorMessage(message);
-    setState((current) =>
-      current === 'starting' || current === 'monitoring' || current === 'noFace' || current === 'alert'
-        ? 'error'
-        : current,
-    );
-  }, []);
+  const onCameraError = useCallback(
+    (message: string) => {
+      stopAlertTone();
+      setAudioPlaying(false);
+      setErrorMessage(message);
+      setState((current) =>
+        current === 'starting' ||
+        current === 'monitoring' ||
+        current === 'noFace' ||
+        current === 'alert'
+          ? 'error'
+          : current,
+      );
+      finishActiveSession('interrupted');
+    },
+    [finishActiveSession],
+  );
 
   const stop = useCallback(() => {
     stopAlertTone();
@@ -205,69 +285,95 @@ export default function App() {
     setFaceFound(null);
     setAlertInfo(null);
     setState('idle');
-  }, [drowsinessTracker]);
+    finishActiveSession('completed');
+  }, [drowsinessTracker, finishActiveSession]);
 
-  const onCameraFrame = useCallback((nativeFrame: CameraFrameEvent) => {
-    const frame = parseVisionFrame(nativeFrame);
-    if (!frame) {
-      onCameraError('Frame camera không đúng hợp đồng dữ liệu; quá trình giám sát đã dừng.');
-      return;
+  const clearHistory = useCallback(async () => {
+    try {
+      await clearAlertEvents();
+      setEvents([]);
+      console.log('SQLite: Alert history cleared successfully');
+    } catch (error) {
+      console.error('Cannot clear alert history:', error);
     }
+  }, []);
 
-    const { metrics: nextMetrics, result } = drowsinessTracker.update(frame, settings);
-    setMetrics(nextMetrics);
-    setFaceFound(
-      frame.status === 'FACE_DETECTED'
-        ? true
-        : frame.status === 'NO_FACE'
-          ? false
-          : null,
-    );
-
-    if (result.status === 'drowsy') {
-      const kind = result.alertKind ?? 'eyesClosed';
-      setAlertInfo((current) => current?.kind === kind ? current : {
-        kind,
-        detail: result.reasons.join(' · '),
-      });
-    } else if (
-      result.status === 'noFace' ||
-      (result.status === 'awake' && (nextMetrics.eyesOpenSec ?? 0) >= 3)
-    ) {
-      setAlertInfo(null);
-    }
-
-    setState((current) => {
-      // A frame still in flight after Stop or an error must not restart monitoring.
-      if (current === 'idle' || current === 'error') return current;
-      if (result.status === 'noFace') return 'noFace';
-      if (result.status === 'drowsy') return 'alert';
-      if (
-        current === 'alert' &&
-        (result.status !== 'awake' || (nextMetrics.eyesOpenSec ?? 0) < 3)
-      ) {
-        return 'alert';
+  const onCameraFrame = useCallback(
+    (nativeFrame: CameraFrameEvent) => {
+      const frame = parseVisionFrame(nativeFrame);
+      if (!frame) {
+        onCameraError(
+          'Frame camera không đúng hợp đồng dữ liệu; quá trình giám sát đã dừng.',
+        );
+        return;
       }
-      return 'monitoring';
-    });
-  }, [drowsinessTracker, onCameraError, settings]);
 
-  const changeTab = useCallback((nextTab: Tab) => {
-    if (nextTab !== 'monitor' && state !== 'idle' && state !== 'error') {
-      stop();
-    }
-    setTab(nextTab);
-  }, [state, stop]);
+      const { metrics: nextMetrics, result } = drowsinessTracker.update(
+        frame,
+        settings,
+      );
+      setMetrics(nextMetrics);
+      setFaceFound(
+        frame.status === 'FACE_DETECTED'
+          ? true
+          : frame.status === 'NO_FACE'
+            ? false
+            : null,
+      );
+
+      if (result.status === 'drowsy') {
+        const kind = result.alertKind ?? 'eyesClosed';
+        setAlertInfo((current) =>
+          current?.kind === kind
+            ? current
+            : {
+                kind,
+                detail: result.reasons.join(' · '),
+              },
+        );
+      } else if (
+        result.status === 'noFace' ||
+        (result.status === 'awake' && (nextMetrics.eyesOpenSec ?? 0) >= 3)
+      ) {
+        setAlertInfo(null);
+      }
+
+      setState((current) => {
+        // Không để frame đang xử lý dở khởi động lại giám sát sau khi Stop hoặc lỗi.
+        if (current === 'idle' || current === 'error') return current;
+        if (result.status === 'noFace') return 'noFace';
+        if (result.status === 'drowsy') return 'alert';
+        if (
+          current === 'alert' &&
+          (result.status !== 'awake' || (nextMetrics.eyesOpenSec ?? 0) < 3)
+        ) {
+          return 'alert';
+        }
+        return 'monitoring';
+      });
+    },
+    [drowsinessTracker, onCameraError, settings],
+  );
+
+  const changeTab = useCallback(
+    (nextTab: Tab) => {
+      if (nextTab !== 'monitor' && state !== 'idle' && state !== 'error') {
+        stop();
+      }
+      setTab(nextTab);
+    },
+    [state, stop],
+  );
 
   if (!fontsLoaded) {
     return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
   }
 
   const alerting = tab === 'monitor' && state === 'alert';
+
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
-
       <View style={{ flex: 1, backgroundColor: colors.bg }}>
         {alerting ? (
           <AlertScreen
@@ -281,7 +387,10 @@ export default function App() {
             onCameraFrame={onCameraFrame}
           />
         ) : tab === 'history' ? (
-          <HistoryScreen events={settings.saveHistory ? events : []} />
+          <HistoryScreen
+            events={settings.saveHistory ? events : []}
+            onClear={clearHistory}
+          />
         ) : tab === 'settings' ? (
           <SettingsScreen settings={settings} onChange={setSettings} />
         ) : state === 'idle' ? (
@@ -306,7 +415,6 @@ export default function App() {
             onCameraFrame={onCameraFrame}
           />
         )}
-
         {alerting ? null : <TabBar active={tab} onChange={changeTab} />}
       </View>
     </SafeAreaProvider>
