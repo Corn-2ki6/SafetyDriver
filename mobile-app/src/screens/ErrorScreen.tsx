@@ -11,7 +11,7 @@ const STEPS = [
 ];
 
 /** 06 · Lỗi giám sát. */
-export function ErrorScreen({ code, at, onRetry }: { code: string; at: Date; onRetry: () => void }) {
+export function ErrorScreen({ code, message, at, onRetry }: { code: string; message: string; at: Date; onRetry: () => void }) {
   return (
     <Screen>
       <Header title="Giám sát" right={<StatusPill label="Lỗi giám sát" color={colors.danger} />} />
@@ -19,9 +19,7 @@ export function ErrorScreen({ code, at, onRetry }: { code: string; at: Date; onR
       <View style={styles.hero}>
         <IconCircle icon={CameraOff} size={84} color={colors.danger} />
         <Text style={[type.title, styles.center]}>Camera bị gián đoạn</Text>
-        <Text style={[type.body, styles.center, { color: colors.muted }]}>
-          Không nhận được khung hình từ camera trước. Quá trình giám sát đã tạm dừng.
-        </Text>
+        <Text style={[type.body, styles.center, { color: colors.muted }]}>{message}</Text>
       </View>
 
       <Card>

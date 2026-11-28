@@ -1,0 +1,168 @@
+# Hướng dẫn cài công cụ và test SafetyDriver
+
+Tài liệu dành cho thành viên muốn chạy bản demo Android trên nhánh `test/tv5-vision`.
+Các lệnh bên dưới dùng **Windows PowerShell**.
+
+## 1. Công cụ cần cài
+
+| Công cụ | Dùng để làm gì | Tải về |
+|---|---|---|
+| Git for Windows | Clone repo và lấy nhánh demo | [git-scm.com/download/win](https://git-scm.com/download/win) |
+| Node.js 26.13.1 | Chạy Expo/React Native và các bài test JavaScript | [nodejs.org](https://nodejs.org/en/download) |
+| Android Studio | Cài Android SDK, tạo emulator và xem log/profiler | [developer.android.com/studio](https://developer.android.com/studio) |
+| JDK 17 | Build phần Android native bằng Gradle | [Adoptium Temurin 17](https://adoptium.net/temurin/releases/?version=17) |
+
+Môi trường đã build được demo dùng Node.js `26.13.1`, OpenJDK `17.0.21`,
+Gradle Wrapper `9.4.1`. Không cần cài Gradle riêng. Có thể dùng JDK đi kèm
+Android Studio nếu đặt Gradle JDK về JDK 17.
+
+**Không cần cài Python để chạy app Android.** Python chỉ dùng cho các thử
+nghiệm prototype riêng, không tham gia vào app React Native.
+
+## 2. Cài Android SDK
+
+Mở Android Studio → **More Actions → SDK Manager** và cài:
+
+- Android SDK Platform `37`
+- Android SDK Build-Tools `37.0.0`
+- Android SDK Platform-Tools (có `adb`)
+- Android Emulator
+- NDK (Side by side) `27.1.12297006`
+
+Trong **SDK Tools**, bật hiển thị package details nếu cần chọn đúng phiên bản.
+Mở **Device Manager** và tạo máy ảo Android API 37, kiến trúc x86_64. Có thể
+dùng thiết bị `Medium Phone` hoặc Pixel tương đương.
+
+Đặt **Gradle JDK** tại Android Studio → Settings → Build, Execution, Deployment
+→ Build Tools → Gradle thành JDK 17.
+
+## 3. Lấy mã nguồn
+
+Mở PowerShell:
+
+```powershell
+git clone --branch test/tv5-vision https://github.com/Corn-2ki6/SafetyDriver.git
+Set-Location .\SafetyDriver\mobile-app
+```
+
+Nếu đã clone repo, chuyển sang nhánh demo:
+
+```powershell
+Set-Location 'D:\path\to\SafetyDriver'
+git fetch origin
+git switch test/tv5-vision
+git pull
+Set-Location .\mobile-app
+```
+
+## 4. Cài dependency và chạy trên Android
+
+Ở thư mục `mobile-app`, cài các package theo lockfile:
+
+```powershell
+npm ci
+```
+
+Nếu Android SDK được cài ở vị trí mặc định, cấu hình biến môi trường cho cửa sổ
+PowerShell hiện tại:
+
+```powershell
+$env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
+$env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
+```
+
+Nếu SDK nằm ở vị trí khác, thay đường dẫn bằng vị trí thực tế. Kiểm tra emulator
+và thiết bị:
+
+```powershell
+& "$env:ANDROID_HOME\emulator\emulator.exe" -list-avds
+& "$env:ANDROID_HOME\platform-tools\adb.exe" devices -l
+```
+
+Khởi động AVD từ Device Manager, sau đó build, cài và mở ứng dụng:
+
+```powershell
+npx expo run:android
+```
+
+Lần build Android đầu tiên có thể mất vài phút và cần Internet. Gradle sẽ tải
+MediaPipe Face Landmarker model, kiểm tra SHA-256 rồi đóng gói vào app. **Expo
+Go không chứa module camera native của dự án**, vì vậy cần chạy `npx expo
+run:android`, không dùng Expo Go để đo EAR/MAR.
+
+Khi Android hỏi quyền camera, chọn **Allow**. Trong app, vào màn hình giám sát
+và nhấn bắt đầu để xem FPS, EAR, MAR, tư thế đầu và thời gian nhắm mắt liên tục
+khi nhận diện được khuôn mặt.
+
+## 5. Dùng webcam máy tính với Android Emulator
+
+Emulator mặc định có thể dùng nguồn camera giả lập. Để thử webcam thật:
+
+1. Đóng hoặc dừng các trang web/app đang dùng webcam trên máy tính.
+2. Kiểm tra webcam mà Android Emulator nhìn thấy:
+
+   ```powershell
+   & "$env:ANDROID_HOME\emulator\emulator.exe" -webcam-list
+   ```
+
+3. Nếu danh sách có `webcam0`, khởi động AVD với camera trước nối vào webcam:
+
+   ```powershell
+   & "$env:ANDROID_HOME\emulator\emulator.exe" `
+     -avd Medium_Phone_API_37.0 `
+     -camera-front webcam0 `
+     -camera-back emulated `
+     -no-snapshot-load
+   ```
+
+   Thay `Medium_Phone_API_37.0` bằng tên AVD do `-list-avds` hiển thị nếu khác.
+   Có thể chọn nguồn webcam trong phần **Camera** của cửa sổ Android Emulator
+   (More / Extended Controls) nếu phiên bản Emulator có mục này.
+
+4. Chạy `npx expo run:android`, cấp quyền camera và thử lại.
+
+**Lưu ý demo:** đã gặp trường hợp camera báo mở nhưng preview trong emulator vẫn
+đen và không có landmarks, kể cả khi đã chọn `webcam0`. Vì vậy lệnh trên chỉ
+cấu hình nguồn webcam, không đảm bảo webcam hoạt động trên mọi máy. Nếu vẫn
+đen, giải phóng webcam khỏi trình duyệt/ứng dụng khác rồi thử lại; nếu cần đo
+chỉ số thực tế, ưu tiên thiết bị Android thật có camera.
+
+## 6. Chạy bài test và bản web
+
+Các bài test hiện có dùng test runner tích hợp của Node.js:
+
+```powershell
+node --test tests\vision\*.test.mjs
+```
+
+Có thể chạy giao diện web để xem UI và video trực tiếp:
+
+```powershell
+npm run web
+```
+
+Bản web hiện chỉ hiển thị preview camera; phân tích khuôn mặt và EAR/MAR chỉ
+được hỗ trợ trong bản Android native.
+
+## 7. Ghi nhận kết quả và xử lý lỗi
+
+- Chỉ test khi xe đứng yên; đây là demo, không dùng làm căn cứ để lái xe hoặc
+  thay thế sự chú ý của tài xế.
+- Đặt mặt đủ sáng, ở giữa khung hình và không bị che. Nếu chưa thấy landmarks,
+  ứng dụng sẽ chưa hiển thị các chỉ số.
+- Nếu báo không tìm thấy SDK, kiểm tra `ANDROID_HOME` và
+  `ANDROID_SDK_ROOT` trong đúng cửa sổ PowerShell đang chạy lệnh.
+- Nếu camera bị từ chối, vào Android Settings → Apps → SafetyDriver →
+  Permissions → Camera và cấp quyền.
+- Nếu camera vẫn đen, lấy log để gửi kèm báo lỗi:
+
+  ```powershell
+  & "$env:ANDROID_HOME\platform-tools\adb.exe" logcat -d |
+    Select-String "CameraX|Camera|SafetyDriver|MediaPipe"
+  ```
+
+- Android Studio có **Profiler** tích hợp để quan sát CPU, bộ nhớ và hiệu năng
+  khi app đang chạy. Ghi kèm model thiết bị/emulator, phiên bản Android và điều
+  kiện ánh sáng khi chia sẻ số đo.
+- Không commit video khuôn mặt, ảnh riêng tư, signing keys hoặc thông tin bí
+  mật lên repository.

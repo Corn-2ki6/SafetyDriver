@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Camera, CameraOff, CircleCheck, Eye, Info, Play, ShieldCheck, Smartphone, Sun } from 'lucide-react-native';
 import { CameraPreview } from '../components/CameraPreview';
@@ -52,7 +52,9 @@ export function HomeScreen({ onStart }: { onStart: () => void }) {
           <IconCircle icon={Camera} size={72} />
           <Text style={[type.title, styles.centerText]}>Cho phép truy cập camera</Text>
           <Text style={[type.body, styles.centerText, { color: colors.muted }]}>
-            SafetyDriver cần camera trước để theo dõi mắt, miệng và tư thế đầu nhằm phát hiện dấu hiệu buồn ngủ.
+            {Platform.OS === 'android'
+              ? 'SafetyDriver dùng camera trước và phân tích khuôn mặt trên thiết bị Android. EAR/MAR và cảnh báo là tính năng thử nghiệm, không thay thế việc nghỉ ngơi.'
+              : 'Camera trực tiếp có thể dùng trên web; phân tích khuôn mặt hiện chỉ được tích hợp trong bản Android native.'}
           </Text>
           <View style={styles.privacy}>
             {PRIVACY.map((text) => (
@@ -63,7 +65,6 @@ export function HomeScreen({ onStart }: { onStart: () => void }) {
             ))}
           </View>
           <View style={styles.actions}>
-            {/* shortcut: goes straight to monitoring; request the real OS permission here once features/camera exists. */}
             <Button
               label="Cho phép dùng camera"
               icon={Camera}

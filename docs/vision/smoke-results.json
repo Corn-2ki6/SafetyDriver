@@ -1,0 +1,124 @@
+{
+  "testedAtUtc": "2026-11-18T06:59:55.102964+00:00",
+  "scope": "CPU prototype smoke test; public still image + synthetic stream, not road/device accuracy benchmark",
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "python": "3.12.14",
+  "dependencies": {
+    "mediapipe": "0.10.32",
+    "opencv-contrib-python": "4.11.0.86",
+    "numpy": "2.2.6"
+  },
+  "modelSha256": "64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff",
+  "sampleSha256": "a6f11efaa834706db23f275b6115058fa87fc7f14362681e6abe14e82749de3e",
+  "cases": [
+    {
+      "case": "portrait",
+      "status": "FACE_DETECTED",
+      "landmarkCount": 478,
+      "inferenceMs": 16.301,
+      "features": {
+        "earLeft": 0.19679935652659378,
+        "earRight": 0.21200914253774802,
+        "ear": 0.2044042495321709,
+        "mar": 0.1736578496184323,
+        "pitchDeg": 3.893794482458198,
+        "issues": []
+      },
+      "passed": true
+    },
+    {
+      "case": "blank",
+      "status": "NO_FACE",
+      "landmarkCount": 0,
+      "inferenceMs": 2.192,
+      "features": {
+        "earLeft": null,
+        "earRight": null,
+        "ear": null,
+        "mar": null,
+        "pitchDeg": null,
+        "issues": [
+          "NO_FACE"
+        ]
+      },
+      "passed": true
+    },
+    {
+      "case": "rotated_portrait_corrected",
+      "status": "FACE_DETECTED",
+      "landmarkCount": 478,
+      "inferenceMs": 14.084,
+      "features": {
+        "earLeft": 0.19679935652659378,
+        "earRight": 0.21200914253774802,
+        "ear": 0.2044042495321709,
+        "mar": 0.1736578496184323,
+        "pitchDeg": 3.893794482458198,
+        "issues": []
+      },
+      "passed": true
+    },
+    {
+      "case": "video_timestamp_0",
+      "status": "FACE_DETECTED",
+      "landmarkCount": 478,
+      "inferenceMs": 16.033,
+      "features": {
+        "earLeft": 0.19679935652659378,
+        "earRight": 0.21200899368876117,
+        "ear": 0.20440417510767747,
+        "mar": 0.1736578496184323,
+        "pitchDeg": 3.893765696094275,
+        "issues": []
+      },
+      "passed": true
+    },
+    {
+      "case": "video_timestamp_100",
+      "status": "FACE_DETECTED",
+      "landmarkCount": 478,
+      "inferenceMs": 8.775,
+      "features": {
+        "earLeft": 0.1984805202893411,
+        "earRight": 0.21014967796819367,
+        "ear": 0.20431509912876739,
+        "mar": 0.17777246554923515,
+        "pitchDeg": 4.120601751537205,
+        "issues": []
+      },
+      "passed": true
+    },
+    {
+      "case": "video_timestamp_200",
+      "status": "NO_FACE",
+      "landmarkCount": 0,
+      "inferenceMs": 28.719,
+      "features": {
+        "earLeft": null,
+        "earRight": null,
+        "ear": null,
+        "mar": null,
+        "pitchDeg": null,
+        "issues": [
+          "NO_FACE"
+        ]
+      },
+      "passed": true
+    },
+    {
+      "case": "video_timestamp_300",
+      "status": "FACE_DETECTED",
+      "landmarkCount": 478,
+      "inferenceMs": 10.702,
+      "features": {
+        "earLeft": 0.19679935652659378,
+        "earRight": 0.21200899368876117,
+        "ear": 0.20440417510767747,
+        "mar": 0.1736578496184323,
+        "pitchDeg": 3.893765696094275,
+        "issues": []
+      },
+      "passed": true
+    }
+  ]
+}

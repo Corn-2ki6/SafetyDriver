@@ -7,10 +7,10 @@
     "@expo/metro-runtime": "~58.0.17",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/slider": "5.2.1",
-    "expo": "~58.0.23",
+    "expo": "~58.0.25",
     "expo-font": "~58.0.11",
     "expo-linear-gradient": "~58.0.3",
-    "expo-sqlite": "~58.0.17",
+    "expo-sqlite": "~58.0.18",
     "expo-status-bar": "~58.0.4",
     "lucide-react-native": "^1.72.0",
     "react": "19.3.0",
@@ -26,9 +26,13 @@
   },
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "android": "expo run:android",
+    "android:release": "expo run:android --variant release",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "test:vision": "node --experimental-strip-types --test tests/vision/*.test.mjs",
+    "test:logic": "tsc --ignoreConfig --target es2022 --module nodenext --moduleResolution nodenext --skipLibCheck --strict --allowImportingTsExtensions --rewriteRelativeImportExtensions --outDir .test-build src/features/drowsiness/DrowsinessState.ts src/features/alerts/AlertSys.ts src/types/index.ts && node tests/test-tv4.cjs",
+    "check": "tsc --project tsconfig.check.json --noEmit && npm run test:vision && npm run test:logic"
   },
   "private": true
 }

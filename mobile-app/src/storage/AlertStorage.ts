@@ -1,4 +1,3 @@
-
 import type { AlertEvent } from '../types';
 import {
   queryAlertEvents,
@@ -6,7 +5,7 @@ import {
   deleteAllAlertEvents,
 } from './Database';
 
-// Đọc lịch sử cảnh báo từ SQLite
+// Đọc lịch sử cảnh báo từ SQLite.
 export async function getAlertEvents(): Promise<AlertEvent[]> {
   const rows = await queryAlertEvents();
 
@@ -18,7 +17,7 @@ export async function getAlertEvents(): Promise<AlertEvent[]> {
   }));
 }
 
-// Lưu cảnh báo vào SQLite
+// Lưu cảnh báo vào SQLite theo phiên giám sát.
 export async function saveAlertEvent(
   sessionId: string,
   event: AlertEvent,
@@ -26,7 +25,7 @@ export async function saveAlertEvent(
   await insertAlertEvent(sessionId, event);
 }
 
-// Xóa toàn bộ lịch sử cảnh báo
+// Xóa toàn bộ lịch sử cảnh báo.
 export async function clearAlertEvents(): Promise<void> {
   await deleteAllAlertEvents();
 }
